@@ -13,8 +13,18 @@ $ClaudeDir = "$env:USERPROFILE\.claude"
 $GlmModel = "glm-4.6"
 
 # Detect if running from git repository or standalone
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$InstallMethod = if (Test-Path "$ScriptDir\ccs.ps1") { "git" } else { "standalone" }
+$ScriptDir = if ($MyInvocation.MyCommand.Path) {
+    Split-Path -Parent $MyInvocation.MyCommand.Path
+} else {
+    # Running via irm | iex (in-memory, no file path)
+    $null
+}
+
+$InstallMethod = if ($ScriptDir -and (Test-Path "$ScriptDir\ccs.ps1")) {
+    "git"
+} else {
+    "standalone"
+}
 
 # Helper Functions
 
