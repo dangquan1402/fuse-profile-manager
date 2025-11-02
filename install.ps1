@@ -163,7 +163,7 @@ if ($InstallMethod -eq "standalone") {
 }
 
 # Install uninstall script
-if (Test-Path "$ScriptDir\uninstall.ps1") {
+if ($ScriptDir -and (Test-Path "$ScriptDir\uninstall.ps1")) {
     # Only copy if source and destination are different
     if ($ScriptDir -ne $CcsDir) {
         Copy-Item "$ScriptDir\uninstall.ps1" "$CcsDir\uninstall.ps1" -Force
