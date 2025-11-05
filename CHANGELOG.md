@@ -4,6 +4,12 @@ All notable changes to CCS will be documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.4.2] - 2025-11-04
+
+### Changed
+- Version bump for npm republish (2.4.1 was already published before final Windows fix)
+- No code changes from v2.4.1 - identical functionality
+
 ## [2.4.1] - 2025-11-04
 
 ### Fixed
