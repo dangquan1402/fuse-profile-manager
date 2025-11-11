@@ -12,7 +12,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Version (updated by scripts/bump-version.sh)
-$CcsVersion = "3.2.0"
+$CcsVersion = "3.3.0"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigFile = if ($env:CCS_CONFIG) { $env:CCS_CONFIG } else { "$env:USERPROFILE\.ccs\config.json" }
 $ProfilesJson = "$env:USERPROFILE\.ccs\profiles.json"
@@ -107,6 +107,7 @@ function Show-Help {
     Write-ColorLine "Model Switching:" "Cyan"
     Write-ColorLine "  ccs                         Use default Claude account" "Yellow"
     Write-ColorLine "  ccs glm                     Switch to GLM 4.6 model" "Yellow"
+    Write-ColorLine "  ccs glmt                    Switch to GLM with thinking mode" "Yellow"
     Write-ColorLine "  ccs kimi                    Switch to Kimi for Coding" "Yellow"
     Write-ColorLine "  ccs glm 'debug this code'   Use GLM and run command" "Yellow"
     Write-Host ""

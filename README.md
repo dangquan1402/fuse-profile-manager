@@ -30,7 +30,7 @@ Stop hitting rate limits. Keep working continuously.
 claude /login
 ```
 
-### Primary Installation Methods
+### Installation
 
 #### Option 1: npm Package (Recommended)
 
@@ -75,6 +75,7 @@ irm ccs.kaitran.ca/install | iex
 {
   "profiles": {
     "glm": "~/.ccs/glm.settings.json",
+    "glmt": "~/.ccs/glmt.settings.json",
     "kimi": "~/.ccs/kimi.settings.json",
     "default": "~/.claude/settings.json"
   }
@@ -106,19 +107,23 @@ $env:CCS_CLAUDE_PATH = "D:\Tools\Claude\claude.exe"   # Windows
 
 ### Your First Switch
 
-> **⚠️ Important**: Before using GLM or Kimi profiles, you need to update your API keys in their respective settings files:
+> **⚠️ Important**: Before using GLM/GLMT or Kimi profiles, update API keys in settings files:
 > - **GLM**: Edit `~/.ccs/glm.settings.json` and add your GLM API key
+> - **GLMT**: Edit `~/.ccs/glmt.settings.json` and add your Z.AI API key (requires coding plan)
 > - **Kimi**: Edit `~/.ccs/kimi.settings.json` and add your Kimi API key
 
 ```bash
-# Use Claude subscription (default) for high-level planning
-ccs "Plan the implementation of a microservices architecture"
+# Default Claude subscription
+ccs "Plan microservices architecture"
 
-# Switch to GLM for cost-optimized tasks
-ccs glm "Create a simple REST API"
+# Switch to GLM (cost-optimized)
+ccs glm "Create REST API"
 
-# Switch to Kimi for its thinking capabilities
-ccs kimi "Write integration tests with proper error handling"
+# GLM with thinking mode
+ccs glmt "Solve algorithmic problem"
+
+# Kimi for coding
+ccs kimi "Write integration tests"
 ```
 
 ---
@@ -149,186 +154,183 @@ Manual context switching breaks your workflow. **CCS manages it seamlessly**.
 
 </div>
 
-**The Solution**:
-```bash
-ccs work          # Use company Claude account
-ccs personal      # Switch to personal Claude account
-ccs glm           # Switch to GLM for cost-effective tasks
-ccs kimi          # Switch to Kimi for alternative option
-# Hit rate limit? Switch instantly:
-ccs glm           # Continue working with GLM
-# Need different company account?
-ccs work-2        # Switch to second company account
-```
-
 ---
 
-## 📁 Shared Data Architecture
+## Architecture
 
-**v3.1 Shared Global Data**: Commands and skills are symlinked across all profiles via `~/.ccs/shared/`, eliminating duplication.
+### Profile Types
 
-**Directory Structure**:
+**Settings-based**: GLM, GLMT, Kimi, default
+- Uses `--settings` flag pointing to config files
+- GLMT: Embedded proxy for thinking mode support
+
+**Account-based**: work, personal, team
+- Uses `CLAUDE_CONFIG_DIR` for isolated instances
+- Create with `ccs auth create <profile>`
+
+### Shared Data (v3.1)
+
+Commands and skills symlinked from `~/.ccs/shared/` - no duplication across profiles.
+
 ```
 ~/.ccs/
 ├── shared/                  # Shared across all profiles
-│   ├── commands/            # Custom slash commands
-│   └── skills/              # Claude Code skills
+│   ├── agents/
+│   ├── commands/
+│   └── skills/
 ├── instances/               # Profile-specific data
-│   ├── work/
-│   │   ├── commands@ → ~/.ccs/shared/commands/  # Symlink
-│   │   ├── skills@ → ~/.ccs/shared/skills/      # Symlink
-│   │   ├── settings.json    # Profile-specific config
-│   │   └── sessions/        # Profile-specific sessions
-│   └── personal/
+│   └── work/
+│       ├── agents@ → shared/agents/
+│       ├── commands@ → shared/commands/
+│       ├── skills@ → shared/skills/
+│       ├── settings.json    # API keys, credentials
+│       └── sessions/        # Conversation history
 │       └── ...
 ```
 
-**Benefits**:
-- No duplication of commands/skills across profiles
-- Single source of truth for shared resources
-- Automatic migration from v3.0 (runs on first use)
-- Windows fallback: copies if symlinks unavailable (enable Developer Mode for true symlinks)
+**Shared**: commands/, skills/, agents/
+**Profile-specific**: settings.json, sessions/, todolists/, logs/
 
-**What's Shared**:
-- `.claude/commands/` - Custom slash commands
-- `.claude/skills/` - Claude Code skills
-
-**What's Profile-Specific**:
-- `settings.json` - API keys, credentials
-- `sessions/` - Conversation history
-- `todolists/` - Task tracking
-- `logs/` - Profile-specific logs
+**[i] Windows**: Copies dirs if symlinks unavailable (enable Developer Mode for true symlinks)
 
 ---
 
-## 🏗️ Architecture Overview
+## GLM with Thinking (GLMT)
 
-**v3.0 Login-Per-Profile Model**: Each profile is an isolated Claude instance where users login directly. No credential copying or vault encryption.
+> **[!] Important**: GLMT requires npm installation (`npm install -g @kaitranntt/ccs`). Not available in native shell versions (requires Node.js HTTP server).
 
-```mermaid
-flowchart TD
-    subgraph "User Input"
-        USER["User runs: ccs &lt;profile&gt; [args...]"]
-    end
+### GLM vs GLMT
 
-    subgraph "Profile Detection Engine"
-        DETECT[ProfileDetector]
-        PROFILE_CHECK{Profile exists?}
+| Feature | GLM (`ccs glm`) | GLMT (`ccs glmt`) |
+|---------|-----------------|-------------------|
+| **Endpoint** | Anthropic-compatible | OpenAI-compatible |
+| **Thinking** | No | Yes (reasoning_content) |
+| **Streaming** | Yes | No (buffered) |
+| **Use Case** | Fast responses | Complex reasoning |
 
-        subgraph "Profile Types"
-            SETTINGS["Settings-based<br/>glm, kimi, default"]
-            ACCOUNT["Account-based<br/>work, personal, team"]
-        end
-    end
+### How It Works
 
-    subgraph "CCS Core Processing"
-        CONFIG["Read config.json<br/>and profiles.json"]
+1. CCS spawns embedded HTTP proxy on localhost
+2. Proxy converts Anthropic format → OpenAI format
+3. Forwards to Z.AI with reasoning parameters
+4. Converts `reasoning_content` → thinking blocks
+5. Thinking appears in Claude Code UI
 
-        subgraph "Profile Handlers"
-            SETTINGS_MGR["SettingsManager<br/>→ --settings flag"]
-            INSTANCE_MGR["InstanceManager<br/>→ CLAUDE_CONFIG_DIR"]
-        end
-    end
+### Control Tags
 
-    subgraph "Claude CLI Execution"
-        CLAUDE_DETECT["Claude CLI Detection<br/>CCS_CLAUDE_PATH support"]
+- `<Thinking:On|Off>` - Enable/disable reasoning blocks (default: On)
+- `<Effort:Low|Medium|High>` - Control reasoning depth (default: Medium)
 
-        subgraph "Execution Methods"
-            SETTINGS_EXEC["claude --settings &lt;path&gt;"]
-            INSTANCE_EXEC["CLAUDE_CONFIG_DIR=&lt;instance&gt; claude"]
-        end
-    end
+### API Key Setup
 
-    subgraph "API Layer"
-        API["API Response<br/>Claude Sonnet 4.5<br/>GLM 4.6<br/>Kimi K2 Thinking"]
-    end
+```bash
+# Edit GLMT settings
+nano ~/.ccs/glmt.settings.json
 
-    %% Flow connections
-    USER --> DETECT
-    DETECT --> PROFILE_CHECK
-    PROFILE_CHECK -->|Yes| SETTINGS
-    PROFILE_CHECK -->|Yes| ACCOUNT
-
-    SETTINGS --> CONFIG
-    ACCOUNT --> CONFIG
-
-    CONFIG --> SETTINGS_MGR
-    CONFIG --> INSTANCE_MGR
-
-    SETTINGS_MGR --> SETTINGS_EXEC
-    INSTANCE_MGR --> INSTANCE_EXEC
-
-    SETTINGS_EXEC --> CLAUDE_DETECT
-    INSTANCE_EXEC --> CLAUDE_DETECT
-
-    CLAUDE_DETECT --> API
+# Set Z.AI API key (requires coding plan)
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "your-z-ai-api-key"
+  }
+}
 ```
 
----
+### Debugging
 
-## ⚡ Features
-
-- **Instant Switching** - `ccs glm` switches to GLM, no config editing
-- **Concurrent Sessions** - Run multiple profiles simultaneously in different terminals
-- **Isolated Instances** - Each profile gets own config (`~/.ccs/instances/<profile>/`)
-- **Cross-Platform** - macOS, Linux, Windows - identical behavior
-- **Zero Downtime** - Switch instantly, no workflow interruption
-
-
----
-
-## 💻 Usage Examples
-
-### Basic Profile Switching
+**Enable verbose logging**:
 ```bash
-ccs              # Use Claude subscription (default)
-ccs glm          # Use GLM fallback
-ccs kimi         # Use Kimi for Coding
-ccs --version    # Show CCS version and install location
+ccs glmt --verbose "your prompt"
 ```
 
-### Concurrent Sessions (Multi-Account)
+**Enable debug file logging**:
 ```bash
-# Create multiple Claude accounts
-ccs auth create work       # Company account
-ccs auth create personal   # Personal account
-ccs auth create team       # Team account
+export CCS_DEBUG_LOG=1
+ccs glmt --verbose "your prompt"
+# Logs: ~/.ccs/logs/
+```
 
-# Terminal 1 - Work account
+**Check reasoning content**:
+```bash
+cat ~/.ccs/logs/*response-openai.json | jq '.choices[0].message.reasoning_content'
+```
+
+**If absent**: Z.AI API issue (verify key, account status)
+**If present**: Transformation issue (check response-anthropic.json)
+
+---
+
+## Usage Examples
+
+### Basic Switching
+```bash
+ccs              # Claude subscription (default)
+ccs glm          # GLM (no thinking)
+ccs glmt         # GLM with thinking
+ccs kimi         # Kimi for Coding
+ccs --version    # Show version
+```
+
+### Multi-Account Setup
+```bash
+# Create accounts
+ccs auth create work
+ccs auth create personal
+
+# Terminal 1
 ccs work "implement feature"
 
-# Terminal 2 - Personal account (runs concurrently)
+# Terminal 2 (concurrent)
 ccs personal "review code"
 ```
 
+### Custom Claude CLI Path
+
+Non-standard installation location:
+```bash
+export CCS_CLAUDE_PATH="/path/to/claude"              # Unix
+$env:CCS_CLAUDE_PATH = "D:\Tools\Claude\claude.exe"   # Windows
+```
+
+See [Troubleshooting Guide](./docs/en/troubleshooting.md#claude-cli-in-non-standard-location)
+
 ---
 
-### 🗑️ Uninstall
+## Configuration
+
+Auto-created during installation via npm postinstall script.
+
+**~/.ccs/config.json**:
+```json
+{
+  "profiles": {
+    "glm": "~/.ccs/glm.settings.json",
+    "glmt": "~/.ccs/glmt.settings.json",
+    "kimi": "~/.ccs/kimi.settings.json",
+    "default": "~/.claude/settings.json"
+  }
+}
+```
+
+Complete guide: [docs/en/configuration.md](./docs/en/configuration.md)
+
+---
+
+## Uninstall
 
 **Package Managers**
 ```bash
-# npm
 npm uninstall -g @kaitranntt/ccs
-
-# yarn
 yarn global remove @kaitranntt/ccs
-
-# pnpm
 pnpm remove -g @kaitranntt/ccs
-
-# bun
 bun remove -g @kaitranntt/ccs
 ```
 
 **Official Uninstaller**
-
-**macOS / Linux**
 ```bash
+# macOS / Linux
 curl -fsSL ccs.kaitran.ca/uninstall | bash
-```
 
-**Windows PowerShell**
-```powershell
+# Windows
 irm ccs.kaitran.ca/uninstall | iex
 ```
 
@@ -348,6 +350,7 @@ irm ccs.kaitran.ca/uninstall | iex
 - [Installation Guide](./docs/en/installation.md)
 - [Configuration](./docs/en/configuration.md)
 - [Usage Examples](./docs/en/usage.md)
+- [System Architecture](./docs/system-architecture.md)
 - [Troubleshooting](./docs/en/troubleshooting.md)
 - [Contributing](./CONTRIBUTING.md)
 

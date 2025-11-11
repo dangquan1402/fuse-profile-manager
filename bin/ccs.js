@@ -108,6 +108,8 @@ function handleHelpCommand() {
   console.log(colored('Model Switching:', 'cyan'));
   console.log(`  ${colored('ccs', 'yellow')}                         Use default Claude account`);
   console.log(`  ${colored('ccs glm', 'yellow')}                     Switch to GLM 4.6 model`);
+  console.log(`  ${colored('ccs glmt', 'yellow')}                    Switch to GLM with thinking mode`);
+  console.log(`  ${colored('ccs glmt --verbose', 'yellow')}          Enable debug logging`);
   console.log(`  ${colored('ccs kimi', 'yellow')}                    Switch to Kimi for Coding`);
   console.log(`  ${colored('ccs glm', 'yellow')} "debug this code"   Use GLM and run command`);
   console.log('');
@@ -212,6 +214,114 @@ function detectProfile(args) {
   }
 }
 
+// Execute Claude CLI with embedded proxy (for GLMT profile)
+async function execClaudeWithProxy(claudeCli, profileName, args) {
+  const { getSettingsPath } = require('./config-manager');
+
+  // 1. Read settings to get API key
+  const settingsPath = getSettingsPath(profileName);
+  const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+  const apiKey = settings.env.ANTHROPIC_AUTH_TOKEN;
+
+  if (!apiKey || apiKey === 'YOUR_GLM_API_KEY_HERE') {
+    console.error('[X] GLMT profile requires Z.AI API key');
+    console.error('    Edit ~/.ccs/glmt.settings.json and set ANTHROPIC_AUTH_TOKEN');
+    process.exit(1);
+  }
+
+  // Detect verbose flag
+  const verbose = args.includes('--verbose') || args.includes('-v');
+
+  // 2. Spawn embedded proxy with verbose flag
+  const proxyPath = path.join(__dirname, 'glmt-proxy.js');
+  const proxyArgs = verbose ? ['--verbose'] : [];
+  const proxy = spawn('node', [proxyPath, ...proxyArgs], {
+    stdio: ['ignore', 'pipe', verbose ? 'pipe' : 'inherit']
+  });
+
+  // 3. Wait for proxy ready signal (with timeout)
+  let port;
+  try {
+    port = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Proxy startup timeout (5s)'));
+      }, 5000);
+
+      proxy.stdout.on('data', (data) => {
+        const match = data.toString().match(/PROXY_READY:(\d+)/);
+        if (match) {
+          clearTimeout(timeout);
+          resolve(parseInt(match[1]));
+        }
+      });
+
+      proxy.on('error', (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+
+      proxy.on('exit', (code) => {
+        if (code !== 0 && code !== null) {
+          clearTimeout(timeout);
+          reject(new Error(`Proxy exited with code ${code}`));
+        }
+      });
+    });
+  } catch (error) {
+    console.error('[X] Failed to start GLMT proxy:', error.message);
+    console.error('');
+    console.error('Possible causes:');
+    console.error('  1. Port conflict (unlikely with random port)');
+    console.error('  2. Node.js permission issue');
+    console.error('  3. Firewall blocking localhost');
+    console.error('');
+    console.error('Workarounds:');
+    console.error('  - Use non-thinking mode: ccs glm "prompt"');
+    console.error('  - Enable verbose logging: ccs glmt --verbose "prompt"');
+    console.error('  - Check proxy logs in ~/.ccs/logs/ (if debug enabled)');
+    console.error('');
+    proxy.kill();
+    process.exit(1);
+  }
+
+  // 4. Spawn Claude CLI with proxy URL
+  const envVars = {
+    ...process.env,
+    ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}`,
+    ANTHROPIC_AUTH_TOKEN: apiKey,
+    ANTHROPIC_MODEL: 'glm-4.6'
+  };
+
+  const claude = spawn(claudeCli, args, {
+    stdio: 'inherit',
+    env: envVars
+  });
+
+  // 5. Cleanup: kill proxy when Claude exits
+  claude.on('exit', (code, signal) => {
+    proxy.kill('SIGTERM');
+    if (signal) process.kill(process.pid, signal);
+    else process.exit(code || 0);
+  });
+
+  claude.on('error', (error) => {
+    console.error('[X] Claude CLI error:', error);
+    proxy.kill('SIGTERM');
+    process.exit(1);
+  });
+
+  // Also handle parent process termination (use .once to avoid duplicates)
+  process.once('SIGTERM', () => {
+    proxy.kill('SIGTERM');
+    claude.kill('SIGTERM');
+  });
+
+  process.once('SIGINT', () => {
+    proxy.kill('SIGTERM');
+    claude.kill('SIGTERM');
+  });
+}
+
 // Main execution
 async function main() {
   const args = process.argv.slice(2);
@@ -284,10 +394,16 @@ async function main() {
     const profileInfo = detector.detectProfileType(profile);
 
     if (profileInfo.type === 'settings') {
-      // EXISTING FLOW: Settings-based profile (glm, kimi)
-      // Use --settings flag (backward compatible)
-      const expandedSettingsPath = getSettingsPath(profileInfo.name);
-      execClaude(claudeCli, ['--settings', expandedSettingsPath, ...remainingArgs]);
+      // Check if this is GLMT profile (requires proxy)
+      if (profileInfo.name === 'glmt') {
+        // GLMT FLOW: Settings-based with embedded proxy for thinking support
+        await execClaudeWithProxy(claudeCli, profileInfo.name, remainingArgs);
+      } else {
+        // EXISTING FLOW: Settings-based profile (glm, kimi)
+        // Use --settings flag (backward compatible)
+        const expandedSettingsPath = getSettingsPath(profileInfo.name);
+        execClaude(claudeCli, ['--settings', expandedSettingsPath, ...remainingArgs]);
+      }
     } else if (profileInfo.type === 'account') {
       // NEW FLOW: Account-based profile (work, personal)
       // All platforms: Use instance isolation with CLAUDE_CONFIG_DIR

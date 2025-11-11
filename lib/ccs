@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Version (updated by scripts/bump-version.sh)
-CCS_VERSION="3.2.0"
+CCS_VERSION="3.3.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly CONFIG_FILE="${CCS_CONFIG:-$HOME/.ccs/config.json}"
 readonly PROFILES_JSON="$HOME/.ccs/profiles.json"
@@ -51,6 +51,7 @@ show_help() {
   echo -e "${CYAN}Model Switching:${RESET}"
   echo -e "  ${YELLOW}ccs${RESET}                         Use default Claude account"
   echo -e "  ${YELLOW}ccs glm${RESET}                     Switch to GLM 4.6 model"
+  echo -e "  ${YELLOW}ccs glmt${RESET}                    Switch to GLM with thinking mode"
   echo -e "  ${YELLOW}ccs kimi${RESET}                    Switch to Kimi for Coding"
   echo -e "  ${YELLOW}ccs glm${RESET} \"debug this code\"   Use GLM and run command"
   echo ""

@@ -2,7 +2,7 @@
 
 ## Overview
 
-CCS (Claude Code Switch) is a lightweight CLI wrapper that provides instant profile switching between Claude Sonnet 4.5 and GLM 4.6 models. The architecture has been recently simplified to achieve a 35% reduction in codebase size while maintaining all functionality.
+CCS (Claude Code Switch) is a lightweight CLI wrapper that provides instant profile switching between Claude Sonnet 4.5 and GLM 4.6 models. Current version **v3.3.0** features GLMT thinking mode with embedded proxy architecture, debug logging, and refined configuration management.
 
 ## Core Architecture Principles
 
@@ -62,32 +62,57 @@ graph TB
 
 **Key Responsibilities**:
 - Argument parsing and profile detection
-- Special command handling (--version, --help, auth) [--install/--uninstall WIP]
+- Special command handling (--version, --help, auth, doctor) [--install/--uninstall WIP]
 - Profile type routing (settings-based vs account-based)
+- GLMT proxy lifecycle management
 - Unified process execution through `execClaude()`
 - Error propagation and exit code management
+- Auto-recovery for missing configuration
 
-**Architecture with Concurrent Sessions**:
+**Architecture with GLMT Support (v3.3.0)**:
 ```mermaid
-graph LR
+graph TD
     subgraph "Entry Point"
         ARGS[Parse Arguments]
         SPECIAL[Handle Special Commands]
+        RECOVER[Auto-recovery]
         DETECT[ProfileDetector]
         SETTINGS[Settings-based Profile]
+        GLMT{GLMT Profile?}
         ACCOUNT[Account-based Profile]
+        PROXY[Spawn Proxy]
         EXEC[Execute Claude]
     end
 
     ARGS --> SPECIAL
-    SPECIAL --> DETECT
+    SPECIAL --> RECOVER
+    RECOVER --> DETECT
     DETECT --> SETTINGS
     DETECT --> ACCOUNT
-    SETTINGS --> EXEC
+    SETTINGS --> GLMT
+    GLMT -->|Yes| PROXY
+    GLMT -->|No| EXEC
+    PROXY --> EXEC
     ACCOUNT --> EXEC
 ```
 
-**Key Enhancement ()**: Dual-path execution supporting both `--settings` flag (backward compatible) and `CLAUDE_CONFIG_DIR` env var (concurrent sessions).
+**Key Enhancements**:
+- **v3.3.0**: GLMT proxy spawning with verbose flag detection, API key validation, 5s timeout
+- **v3.2.0**: Dual-path execution supporting both `--settings` flag (backward compatible) and `CLAUDE_CONFIG_DIR` env var (concurrent sessions)
+- **v3.1.0**: Auto-recovery manager for missing configs
+
+**GLMT-Specific Logic**:
+```javascript
+// Check if GLMT profile
+if (profileInfo.name === 'glmt') {
+  // 1. Read API key from settings
+  // 2. Spawn proxy with --verbose flag (if detected in args)
+  // 3. Wait for PROXY_READY:port signal (5s timeout)
+  // 4. Spawn Claude CLI with proxy URL
+  // 5. Kill proxy when Claude exits
+  await execClaudeWithProxy(claudeCli, 'glmt', remainingArgs);
+}
+```
 
 ### 2. Configuration Manager (`bin/config-manager.js`)
 
@@ -236,6 +261,132 @@ graph TD
   "default": "work"
 }
 ```
+## GLMT Architecture (v3.2.0+)
+
+### Overview
+
+GLMT (GLM with Thinking) uses an embedded HTTP proxy to enable thinking mode support for GLM 4.6. The proxy converts between Anthropic and OpenAI formats, injecting reasoning parameters and transforming `reasoning_content` into thinking blocks.
+
+### Components
+
+**1. GLMT Transformer (`bin/glmt-transformer.js`)**
+- Converts Anthropic Messages API → OpenAI Chat Completions format
+- Extracts thinking control tags: `<Thinking:On|Off>`, `<Effort:Low|Medium|High>`
+- Injects reasoning parameters: `reasoning: true`, `reasoning_effort`
+- Transforms OpenAI `reasoning_content` → Anthropic thinking blocks
+- Generates thinking signatures for Claude Code UI
+- Debug logging to `~/.ccs/logs/` when `CCS_DEBUG_LOG=1`
+
+**2. GLMT Proxy (`bin/glmt-proxy.js`)**
+- Embedded HTTP server on `127.0.0.1:random_port`
+- Intercepts Claude CLI → Z.AI requests
+- Lifecycle tied to parent process
+- Buffered mode only (streaming not supported)
+- Request timeout: 120s default
+
+### GLMT Execution Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CCS as ccs.js
+    participant Proxy as glmt-proxy.js
+    participant Transformer as glmt-transformer.js
+    participant ZAI as Z.AI API
+    participant Claude as Claude CLI
+
+    User->>CCS: ccs glmt "solve problem"
+    CCS->>CCS: Read GLMT settings (API key, config)
+    CCS->>Proxy: Spawn proxy with --verbose flag
+    Proxy->>Proxy: Bind to 127.0.0.1:random_port
+    Proxy-->>CCS: PROXY_READY:port
+    CCS->>Claude: Spawn with ANTHROPIC_BASE_URL=http://127.0.0.1:port
+    Claude->>Proxy: POST /v1/messages (Anthropic format)
+    Proxy->>Transformer: transformRequest(anthropicRequest)
+    Transformer->>Transformer: Extract thinking control tags
+    Transformer->>Transformer: Inject reasoning params
+    Transformer-->>Proxy: OpenAI format request
+    Proxy->>ZAI: POST /api/coding/paas/v4/chat/completions
+    ZAI-->>Proxy: OpenAI response (with reasoning_content)
+    Proxy->>Transformer: transformResponse(openaiResponse)
+    Transformer->>Transformer: Convert reasoning_content → thinking blocks
+    Transformer-->>Proxy: Anthropic format response
+    Proxy-->>Claude: Return Anthropic response
+    Claude-->>User: Display with thinking blocks
+    Claude->>CCS: Exit
+    CCS->>Proxy: Kill (SIGTERM)
+```
+
+### Debug Mode Architecture
+
+**Verbose Logging** (`--verbose` flag):
+- Console logging with timestamps
+- Request/response size tracking
+- Transformation validation results
+- Proxy lifecycle events
+
+**Debug File Logging** (`CCS_DEBUG_LOG=1`):
+- Writes to `~/.ccs/logs/`
+- Files: `{timestamp}-request-anthropic.json`, `request-openai.json`, `response-openai.json`, `response-anthropic.json`
+- Pretty-printed JSON with full request/response data
+- **[!] Warning**: Contains sensitive data (API keys, prompts)
+
+**Debug Workflow**:
+```bash
+# Enable both verbose and debug logging
+export CCS_DEBUG_LOG=1
+ccs glmt --verbose "test prompt"
+
+# Check reasoning content
+cat ~/.ccs/logs/*response-openai.json | jq '.choices[0].message.reasoning_content'
+
+# Verify transformation
+cat ~/.ccs/logs/*response-anthropic.json | jq '.content[] | select(.type=="thinking")'
+```
+
+### Configuration Migration (v3.2.0 → v3.3.0)
+
+**Automatic Migration** (postinstall script):
+```javascript
+// Added fields in v3.3.0
+{
+  "env": {
+    "ANTHROPIC_TEMPERATURE": "0.2",        // New
+    "ANTHROPIC_MAX_TOKENS": "65536",       // New
+    "MAX_THINKING_TOKENS": "32768",        // New
+    "ENABLE_STREAMING": "true",            // New
+    "ANTHROPIC_SAFE_MODE": "false",        // New
+    "API_TIMEOUT_MS": "3000000"            // New (50 minutes)
+  },
+  "alwaysThinkingEnabled": true            // New
+}
+```
+
+**Removed/Obsolete Fields** (from v3.2.0):
+- `BASH_DEFAULT_TIMEOUT_MS` - Moved to Claude CLI config
+- `BASH_MAX_TIMEOUT_MS` - Moved to Claude CLI config
+- `DISABLE_TELEMETRY` - No longer needed
+- `ENABLE_THINKING` - Replaced by `alwaysThinkingEnabled`
+
+### Proxy Lifecycle Management
+
+**Startup**:
+1. CCS spawns `node bin/glmt-proxy.js`
+2. Proxy binds to `127.0.0.1:0` (random port)
+3. Proxy emits `PROXY_READY:port` to stdout
+4. CCS reads port, spawns Claude CLI with proxy URL
+5. Timeout: 5s (configurable)
+
+**Cleanup**:
+- Claude CLI exits → CCS kills proxy (`SIGTERM`)
+- Parent process dies → Proxy auto-terminates
+- Uncaught exception → Proxy logs and exits
+
+**Error Handling**:
+- Proxy startup timeout → Show workaround (use `ccs glm`)
+- Port conflict → Uses random port (unlikely)
+- Upstream timeout → 120s default, configurable
+
 ## Data Flow Architecture
 
 ### Settings-Based Profile Execution Flow (Backward Compatible)
@@ -318,27 +469,62 @@ sequenceDiagram
 
 ```
 ~/.ccs/
-├── config.json              # Settings-based profile mappings (glm, kimi)
+├── config.json              # Settings-based profile mappings (glm, glmt, kimi)
 ├── profiles.json            # Account-based profile metadata (work, personal)
-├── glm.settings.json        # GLM configuration
+├── glm.settings.json        # GLM configuration (Anthropic endpoint)
+├── glmt.settings.json       # GLMT configuration (v3.3.0 with thinking mode)
 ├── kimi.settings.json       # Kimi configuration
 ├── config.json.backup       # Single backup file
 ├── VERSION                  # Version information
+├── logs/                    # Debug logs (CCS_DEBUG_LOG=1)
+│   ├── {timestamp}-request-anthropic.json
+│   ├── {timestamp}-request-openai.json
+│   ├── {timestamp}-response-openai.json
+│   └── {timestamp}-response-anthropic.json
+├── shared/                  # Shared across all profiles (v3.1+)
+│   ├── commands/            # Slash commands
+│   ├── skills/              # Agent skills
+│   └── agents/              # Agent configs
 ├── accounts/                # Encrypted credential vaults
 │   ├── .salt                # Key derivation salt
 │   ├── work.json.enc        # Work account credentials (encrypted)
 │   └── personal.json.enc    # Personal account credentials (encrypted)
-└── instances/               # Isolated Claude instances (+)
+└── instances/               # Isolated Claude instances
     ├── work/                # Work account instance
     │   ├── session-env/
     │   ├── todos/
     │   ├── logs/
+    │   ├── commands@ → shared/commands/
+    │   ├── skills@ → shared/skills/
+    │   ├── agents@ → shared/agents/
     │   ├── .credentials.json
     │   └── ...
     └── personal/            # Personal account instance
         ├── session-env/
         ├── todos/
         └── ...
+
+bin/                         # CCS source files
+├── ccs.js                   # Main entry point (v3.3.0)
+├── glmt-proxy.js            # Embedded HTTP proxy (v3.2.0+)
+├── glmt-transformer.js      # Format conversion (v3.2.0+)
+├── config-manager.js        # Configuration handling
+├── claude-detector.js       # Claude CLI detection
+├── instance-manager.js      # Instance orchestration
+├── shared-manager.js        # Shared data symlinks (v3.1+)
+├── profile-detector.js      # Profile type detection
+├── profile-registry.js      # Account profile metadata
+├── helpers.js               # Utility functions
+├── error-manager.js         # Error handling
+├── recovery-manager.js      # Auto-recovery
+├── auth-commands.js         # Multi-account management
+└── doctor.js                # Health check diagnostics
+
+config/
+└── base-glmt.settings.json  # GLMT template (v3.3.0)
+
+scripts/
+└── postinstall.js           # Auto-configuration + migration
 ```
 
 ### Configuration Schema
@@ -354,6 +540,7 @@ sequenceDiagram
 
 ### Settings File Format
 
+**GLM Settings (Anthropic endpoint)**:
 ```json
 {
   "env": {
@@ -366,6 +553,29 @@ sequenceDiagram
   }
 }
 ```
+
+**GLMT Settings (v3.3.0 with thinking mode)**:
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/coding/paas/v4/chat/completions",
+    "ANTHROPIC_AUTH_TOKEN": "your_api_key",
+    "ANTHROPIC_MODEL": "glm-4.6",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.6",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.6",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.6",
+    "ANTHROPIC_TEMPERATURE": "0.2",
+    "ANTHROPIC_MAX_TOKENS": "65536",
+    "MAX_THINKING_TOKENS": "32768",
+    "ENABLE_STREAMING": "true",
+    "ANTHROPIC_SAFE_MODE": "false",
+    "API_TIMEOUT_MS": "3000000"
+  },
+  "alwaysThinkingEnabled": true
+}
+```
+
+**[i] Note**: All env values are strings (not booleans/numbers) for PowerShell compatibility.
 
 ## Security Architecture
 
@@ -503,11 +713,36 @@ graph LR
 
 ### Installation Process
 
-1. **Package Download**: User installs via npm
-2. **Post-install Script**: Automatically creates configuration
-3. **Path Configuration**: Sets up executable in system PATH
-4. **Validation**: Ensures Claude CLI is available
-5. **Ready State**: System ready for profile switching
+1. **Package Download**: User installs via npm/yarn/pnpm/bun
+2. **Post-install Script** (`scripts/postinstall.js`):
+   - Creates `~/.ccs/` directory structure
+   - Creates `~/.ccs/shared/` (commands, skills, agents)
+   - Migrates from v3.1.1 → v3.2.0 (if needed)
+   - Migrates GLMT configs from v3.2.0 → v3.3.0 (adds new fields)
+   - Creates `config.json` (glm, glmt, kimi, default)
+   - Creates `glm.settings.json` (Anthropic endpoint)
+   - Creates `glmt.settings.json` (OpenAI endpoint + thinking mode)
+   - Creates `kimi.settings.json` (Kimi endpoint)
+   - Creates `~/.claude/settings.json` (if missing)
+   - Validates configuration (checks JSON syntax, file existence)
+   - Shows API key setup instructions
+3. **Path Configuration**: npm automatically adds to PATH
+4. **Ready State**: System ready for profile switching
+
+**Idempotency**: Safe to run multiple times, preserves existing configs
+
+**Migration Logic** (v3.3.0):
+```javascript
+// Auto-adds missing fields to existing GLMT configs
+const envDefaults = {
+  ANTHROPIC_TEMPERATURE: '0.2',
+  ANTHROPIC_MAX_TOKENS: '65536',
+  MAX_THINKING_TOKENS: '32768',
+  ENABLE_STREAMING: 'true',
+  ANTHROPIC_SAFE_MODE: 'false',
+  API_TIMEOUT_MS: '3000000'
+};
+```
 
 ## Concurrent Sessions Architecture ()
 
@@ -614,10 +849,25 @@ The CCS system architecture successfully balances simplicity with functionality:
 - **Performance optimization** achieves 35% code reduction with identical functionality
 - **Clean separation of concerns** makes the codebase maintainable and extensible
 
-** Enhancements**:
+**v3.3.0 Features**:
+- **GLMT thinking mode**: Embedded proxy for GLM reasoning support
+- **Debug logging**: File-based logging to `~/.ccs/logs/` when `CCS_DEBUG_LOG=1`
+- **Verbose mode**: Console logging with `--verbose` flag
+- **Configuration migration**: Auto-upgrade v3.2.0 configs with new fields
+- **Enhanced settings**: Temperature, max tokens, thinking controls, API timeout
+- **Transformation validation**: Self-test request/response conversions
+
+**v3.2.0 Enhancements**:
 - Concurrent sessions for account-based profiles
 - Profile type detection and routing (settings vs account)
 - Instance isolation with credential synchronization
 - Backward compatibility maintained for all existing profiles
 
-The architecture demonstrates how thoughtful design can add sophisticated features (concurrent sessions, multi-account management) while maintaining simplicity, security, and backward compatibility.
+**v3.3.0 Architecture Highlights**:
+1. **Proxy Architecture**: Buffered mode with 120s timeout, random port binding
+2. **Debug Infrastructure**: Dual logging (console + file) with timestamp tracking
+3. **Config Management**: Automatic migration, string-only env vars, PowerShell compatibility
+4. **Thinking Mode**: Control tags, reasoning parameters, signature generation
+5. **Error Recovery**: Timeout handling, fallback options, clear error messages
+
+The architecture demonstrates how thoughtful design can add sophisticated features (thinking mode, debug infrastructure, multi-account management) while maintaining simplicity, security, and backward compatibility.

@@ -523,3 +523,54 @@ ccs glm
 - Log file generation
 - Terminals without color support
 - Accessibility preferences
+
+---
+
+## GLMT Troubleshooting
+
+### Thinking Blocks Not Visible
+
+1. **Enable debug logging**:
+   ```bash
+   export CCS_DEBUG_LOG=1
+   ccs glmt --verbose "test"
+   ```
+
+2. **Check raw response**:
+   ```bash
+   cat ~/.ccs/logs/*response-openai.json | jq '.choices[0].message.reasoning_content'
+   ```
+
+3. **Scenarios**:
+   - **reasoning_content present**: Transformation issue → check response-anthropic.json
+   - **reasoning_content absent**: Z.AI API issue → verify API key/account status
+
+### Duplicate "Enchanting" Lines
+
+**Symptom**: Two spinner lines during thinking
+
+**Cause**: Terminal rendering (not CCS issue)
+
+**Solutions**:
+- Use native terminal (iTerm2, GNOME Terminal, Windows Terminal)
+- Exit tmux/screen before running
+- Accept visual glitch (functionality unaffected)
+
+### Proxy Startup Timeout
+
+**Error**: "Proxy startup timeout (5s)"
+
+**Solutions**:
+```bash
+# Try non-thinking mode
+ccs glm "your prompt"
+
+# Check Node.js
+node --version  # Requires ≥14
+
+# Check port availability
+netstat -an | grep 127.0.0.1
+
+# Verbose details
+ccs glmt --verbose "test"
+```

@@ -6,141 +6,166 @@ Guidance for Claude Code when working with this repository.
 
 CCS (Claude Code Switch): CLI wrapper for instant switching between multiple Claude accounts (work, personal, team) and alternative models (GLM 4.6, Kimi). Built on v3.1 login-per-profile architecture with shared data support.
 
-**Installation**:
-- npm: `npm install -g @kaitranntt/ccs` (recommended)
-- macOS/Linux: `curl -fsSL ccs.kaitran.ca/install | bash`
-- Windows: `irm ccs.kaitran.ca/install | iex`
+**Core function**: Switch Claude accounts/models without manual config editing.
 
-## Core Design Principles
+## Design Principles
 
 - **YAGNI**: No features "just in case"
 - **KISS**: Simple bash/PowerShell/Node.js, no complexity
 - **DRY**: One source of truth (config.json)
-- **CLI-First UX**: Command-line is primary interface
+- **CLI-First**: Command-line primary interface
 
-Tool does ONE thing: instant switching between Claude accounts and alternative models.
-
-### CLI Documentation (CRITICAL)
-
-**All functionality changes MUST update `--help` in ALL implementations:**
-- `bin/ccs.js` - handleHelpCommand()
-- `lib/ccs` - show_help()
-- `lib/ccs.ps1` - Show-Help
-
-Non-negotiable. If not in `--help`, it doesn't exist for users.
-
-## Key Constraints
+## Critical Constraints
 
 1. **NO EMOJIS** - ASCII only: [OK], [!], [X], [i]
 2. **TTY-aware colors** - Respect NO_COLOR env var
 3. **Install locations**:
    - Unix: `~/.local/bin` (auto PATH, no sudo)
    - Windows: `%USERPROFILE%\.ccs`
-4. **Auto PATH config** - Detects bash/zsh/fish, adds automatically
+4. **Auto PATH config** - Detect shell (bash/zsh/fish), add automatically
 5. **Idempotent installs** - Safe to run multiple times
 6. **Non-invasive** - Never modify `~/.claude/settings.json`
 7. **Cross-platform parity** - Identical behavior everywhere
-8. **Graceful error handling** - See tests/edge-cases.sh
+8. **CLI documentation** - ALL changes MUST update `--help` in bin/ccs.js, lib/ccs, lib/ccs.ps1
 
 ## Architecture
 
-### v3.1 Features
+### v3.2 GLMT Profile
 
-**Login-Per-Profile**: Each profile = isolated Claude instance via `ccs auth create <profile>`. No credential copying/encryption.
+**Implementation**: Embedded HTTP proxy converts Anthropic ↔ OpenAI formats
 
-**Profile Types**:
-1. **Settings-based**: GLM, Kimi, default - uses `--settings` flag
-2. **Account-based**: work, personal, team - uses `CLAUDE_CONFIG_DIR`
+**[!] Important**: GLMT only available in Node.js version (`bin/ccs.js`). Native shell versions (`lib/ccs`, `lib/ccs.ps1`) do not support GLMT yet (requires HTTP server).
 
-**Shared Data** (v3.1): commands/, skills/, agents/ symlinked from `~/.ccs/shared/`
+**Flow**:
+1. User: `ccs glmt "solve problem"`
+2. `bin/ccs.js` spawns `bin/glmt-proxy.js` on localhost random port
+3. Modifies `glmt.settings.json`: `ANTHROPIC_BASE_URL=http://127.0.0.1:<port>`
+4. Spawns Claude CLI with modified settings
+5. Proxy intercepts requests:
+   - `glmt-transformer.js` converts Anthropic → OpenAI format
+   - Injects reasoning parameters (`reasoning: true`, `reasoning_effort`)
+   - Forwards to `api.z.ai/api/coding/paas/v4/chat/completions`
+   - Converts response: `reasoning_content` → thinking blocks
+   - Returns Anthropic format to Claude CLI
+6. Thinking blocks appear in Claude Code UI
 
-**Concurrent Sessions**: Multiple profiles run simultaneously via isolated config dirs.
+**Files**:
+- `bin/glmt-proxy.js` (275 lines): HTTP proxy server
+- `bin/glmt-transformer.js` (267 lines): Format conversion
+- `config/base-glmt.settings.json`: Template with Z.AI endpoint
+- `tests/glmt-transformer.test.js` (285 lines): Unit tests
 
-**Implementations**:
-- npm package: Pure Node.js (bin/ccs.js) using child_process.spawn
-- Traditional: bash (lib/ccs) or PowerShell (lib/ccs.ps1)
+**Control tags**:
+- `<Thinking:On|Off>` - Enable/disable reasoning
+- `<Effort:Low|Medium|High>` - Control reasoning depth
 
-### File Structure
+**Limitations**:
+- Streaming not supported (buffered mode only)
+- Requires Z.AI API key with coding plan access
+- Proxy lifecycle tied to Claude CLI
+
+### v3.1 Shared Data
+
+**Commands/skills/agents symlinked from `~/.ccs/shared/`** - no duplication across profiles.
+
+```
+~/.ccs/
+├── shared/                  # Shared across all profiles
+│   ├── commands/
+│   ├── skills/
+│   └── agents/
+├── instances/               # Profile-specific
+│   └── work/
+│       ├── commands@ → shared/commands/
+│       ├── skills@ → shared/skills/
+│       ├── agents@ → shared/agents/
+│       ├── settings.json    # API keys, credentials
+│       ├── sessions/        # Conversation history
+│       ├── todolists/
+│       └── logs/
+```
+
+**Shared**: commands/, skills/, agents/
+**Profile-specific**: settings.json, sessions/, todolists/, logs/
+
+**Windows fallback**: Copies dirs if symlinks unavailable (enable Developer Mode for symlinks)
+
+### Profile Types
+
+**Settings-based**: GLM, GLMT, Kimi, default
+- GLM: Uses `--settings` flag (Anthropic endpoint, no thinking)
+- GLMT: Embedded proxy (OpenAI endpoint, thinking enabled)
+- Kimi: Uses `--settings` flag
+
+**Account-based**: work, personal, team
+- Uses `CLAUDE_CONFIG_DIR` for isolated instances
+- Create: `ccs auth create <profile>`
+
+### Concurrent Sessions
+
+Multiple profiles run simultaneously via isolated config dirs.
+
+## File Structure
 
 **Key Files**:
 - `package.json`: npm manifest + postinstall
 - `bin/ccs.js`: Node.js entry point
 - `bin/instance-manager.js`: Instance orchestration
 - `bin/shared-manager.js`: Shared data symlinks (v3.1)
+- `bin/glmt-proxy.js`: Embedded HTTP proxy (v3.2)
+- `bin/glmt-transformer.js`: Anthropic ↔ OpenAI conversion (v3.2)
 - `scripts/postinstall.js`: Auto-creates configs (idempotent)
-- `lib/ccs` / `lib/ccs.ps1`: Platform-specific executables
-- `installers/*.sh` / `installers/*.ps1`: Install/uninstall scripts
+- `lib/ccs`: bash executable
+- `lib/ccs.ps1`: PowerShell executable
+- `installers/*.sh|*.ps1`: Install/uninstall scripts
+- `tests/glmt-transformer.test.js`: GLMT unit tests
 - `VERSION`: Version source of truth (MAJOR.MINOR.PATCH)
-- `.claude/`: Commands/skills for Claude Code
 
 **Executables**:
 - Unix: `~/.local/bin/ccs` → `~/.ccs/ccs`
 - Windows: `%USERPROFILE%\.ccs\ccs.ps1`
 
-**Config Directory** (v3.1):
-```
-~/.ccs/
-├── ccs / ccs.ps1           # Executable
-├── config.json             # Settings-based profiles
-├── profiles.json           # Account-based profiles
-├── shared/                 # Shared across all (v3.1)
-│   ├── commands/           # Slash commands
-│   ├── skills/             # Claude skills
-│   └── agents/             # Agent configs
-├── instances/              # Isolated per-profile
-│   └── work/
-│       ├── commands@ → shared/commands/  # Symlink
-│       ├── skills@ → shared/skills/      # Symlink
-│       ├── agents@ → shared/agents/      # Symlink
-│       ├── settings.json   # Profile-specific
-│       ├── sessions/       # Profile-specific
-│       ├── todolists/      # Profile-specific
-│       └── logs/           # Profile-specific
-├── glm.settings.json       # GLM template
-├── kimi.settings.json      # Kimi template
-└── .claude/                # Integration
-```
+**Config Files**:
+- `~/.ccs/config.json`: Settings-based profiles
+- `~/.ccs/profiles.json`: Account-based profiles
+- `~/.ccs/glm.settings.json`: GLM template (Anthropic endpoint)
+- `~/.ccs/glmt.settings.json`: GLMT template (proxy + thinking)
+- `~/.ccs/kimi.settings.json`: Kimi template
 
-**v3.1 Data Structure**:
-- **Shared**: commands/, skills/, agents/ → symlinked from `~/.ccs/shared/`
-- **Profile-specific**: settings.json, sessions/, todolists/, logs/
-- **Windows**: Copies dirs if symlinks fail (enable Developer Mode for symlinks)
+## Implementations
 
-### Technical Implementation
+**npm package**: Pure Node.js (`bin/ccs.js`) using `child_process.spawn`
 
-**Account-Based Profiles**:
-```bash
-# Create profile
-ccs auth create work  # Opens Claude CLI for login
+**Traditional install**: bash (`lib/ccs`) or PowerShell (`lib/ccs.ps1`)
 
-# Usage
-CLAUDE_CONFIG_DIR=~/.ccs/instances/work claude [args]
-```
+## Code Standards
 
-**Shared Data** (v3.1):
-```javascript
-// bin/shared-manager.js
-ensureSharedDirectories()      // Creates shared/{commands,skills,agents}
-linkSharedDirectories(path)    // Symlinks instance to shared
-migrateToSharedStructure()     // Auto-migrates v3.0 (idempotent)
-```
+### Bash
+- Compatibility: bash 3.2+
+- Quote vars: `"$VAR"` not `$VAR`
+- Tests: `[[ ]]` not `[ ]`
+- Shebang: `#!/usr/bin/env bash`
+- Safety: `set -euo pipefail`
+- Dependency: `jq` only
 
-**Migration** (v3.0 → v3.1):
-1. Detect if `~/.ccs/shared/` exists (skip if present)
-2. Create `~/.ccs/shared/{commands,skills,agents}`
-3. Copy from `~/.claude/` (preserves data)
-4. Symlink all instances to shared
-5. Windows: Copy dirs if symlinks fail
+### PowerShell
+- Compatibility: PowerShell 5.1+
+- `$ErrorActionPreference = "Stop"`
+- Native JSON: ConvertFrom-Json / ConvertTo-Json
+- No external dependencies
 
-**Settings-Based Profiles**:
-```bash
-claude --settings ~/.ccs/glm.settings.json [args]
-```
+### Node.js
+- Compatibility: Node.js 14+
+- `child_process.spawn` for Claude CLI
+- Handle SIGINT/SIGTERM
+- `path` module for cross-platform paths
 
-**Profile Detection**:
-1. Check `profiles.json` (account-based) → use `CLAUDE_CONFIG_DIR`
-2. Check `config.json` (settings-based) → use `--settings`
-3. Not found → show error + available profiles
+### Terminal Output
+- TTY detect: `[[ -t 2 ]]` before colors
+- Respect `NO_COLOR` env var
+- ASCII only: [OK], [!], [X], [i]
+- Errors: Box borders (╔═╗║╚╝)
+- Colors: Disable when not TTY
 
 ## Development
 
@@ -171,8 +196,6 @@ rm -rf ~/.ccs              # Clean environment
 
 ### Publishing
 ```bash
-# First-time: npm login, add NPM_TOKEN to GitHub Secrets
-
 # Release workflow
 ./scripts/bump-version.sh patch
 git add VERSION package.json lib/* installers/*
@@ -184,106 +207,26 @@ git push origin main && git push origin vX.Y.Z  # Triggers CI
 npm publish --dry-run && npm publish --access public
 ```
 
-## Code Standards
-
-### Bash
-- Compatibility: bash 3.2+
-- Quote vars: `"$VAR"` not `$VAR`
-- Tests: `[[ ]]` not `[ ]`
-- Shebang: `#!/usr/bin/env bash`
-- Safety: `set -euo pipefail`
-- Dependency: `jq` only
-
-### Terminal Output
-- TTY detect: `[[ -t 2 ]]` before colors
-- Respect `NO_COLOR` env var
-- ASCII only: [OK], [!], [X], [i]
-- Errors: Box borders (╔═╗║╚╝)
-- Colors: Disable when not TTY
-
-### PowerShell
-- Compatibility: PowerShell 5.1+
-- `$ErrorActionPreference = "Stop"`
-- Native JSON: ConvertFrom-Json / ConvertTo-Json
-- No external dependencies
-
-### Node.js
-- Compatibility: Node.js 14+
-- `child_process.spawn` for Claude CLI
-- Handle SIGINT/SIGTERM
-- `path` module for cross-platform paths
-
-### Versioning
-Update all three atomically via `./scripts/bump-version.sh`:
-1. `VERSION`
-2. `installers/install.sh` (CCS_VERSION)
-3. `installers/install.ps1` ($CcsVersion)
-
-## Implementation Details
-
-### Profile Detection
-- No args OR first arg starts with `-` → default profile
-- First arg no `-` → profile name
-- Special flags first: `--version`, `-v`, `--help`, `-h`
-- `ccs auth create <profile>` → create account-based profile
-
-### Installation Modes
-- **Git**: Cloned repo (symlinks executables)
-- **Standalone**: curl/irm (downloads from GitHub)
-- Detection: Check if `ccs` exists in script dir/parent
-
-### Idempotency
-Install scripts safe to run multiple times:
-- Check existing files before create
-- Single backup: `config.json.backup` (no timestamps)
-- Skip existing `.claude/` install
-- Handle clean + existing installs
-
-### Settings Format
-```json
-{
-  "env": {
-    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "key",
-    "ANTHROPIC_MODEL": "glm-4.6",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.6",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.6",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.6"
-  }
-}
-```
-All values = strings (not booleans/objects) to prevent PowerShell crashes.
-
-### Profile Files
-
-**profiles.json** (account-based):
-```json
-{"profiles": {"work": "~/.ccs/instances/work"}}
-```
-
-**config.json** (settings-based):
-```json
-{"profiles": {"glm": "~/.ccs/glm.settings.json"}}
-```
-
 ## Common Tasks
 
 ### New Feature
+
 1. Verify YAGNI/KISS/DRY alignment
 2. Implement for bash/PowerShell/Node.js
-3. **Update `--help` in ALL three** (bin/ccs.js, lib/ccs, lib/ccs.ps1) - REQUIRED
+3. **REQUIRED**: Update `--help` in bin/ccs.js, lib/ccs, lib/ccs.ps1
 4. Test on macOS/Linux/Windows
 5. Update tests/edge-cases.*
-6. Update CONTRIBUTING.md if needed
-7. Update README.md if user-facing
+6. Update README.md if user-facing
 
 ### Bug Fix
+
 1. Add test case reproducing bug
 2. Fix in bash/PowerShell/Node.js
 3. Verify no regression
 4. Test all platforms
 
 ### Release
+
 1. `./scripts/bump-version.sh [major|minor|patch]`
 2. Review VERSION, install scripts
 3. Test git + standalone modes
@@ -308,15 +251,93 @@ Before PR:
 - [ ] No PATH duplication
 - [ ] Manual PATH instructions clear
 - [ ] Concurrent sessions work
-- [ ] Instance isolation (no contamination)
-- [ ] `--help` updated in bin/ccs.js, lib/ccs, lib/ccs.ps1 (if feature changed)
+- [ ] Instance isolation
+- [ ] `--help` updated in bin/ccs.js, lib/ccs, lib/ccs.ps1
 - [ ] `--help` consistent across all three
 
-## Claude Code Integration
+## Technical Details
 
-`.claude/` contains:
-- `/ccs` command: Task delegation to different models
-- `ccs-delegation` skill: Delegation patterns
+### Profile Detection
+
+1. Check `profiles.json` (account-based) → use `CLAUDE_CONFIG_DIR`
+2. Check `config.json` (settings-based) → use `--settings`
+3. Not found → show error + available profiles
+
+### Installation Modes
+
+- **Git**: Cloned repo (symlinks executables)
+- **Standalone**: curl/irm (downloads from GitHub)
+- Detection: Check if `ccs` exists in script dir/parent
+
+### Idempotency
+
+Install scripts safe to run multiple times:
+- Check existing files before create
+- Single backup: `config.json.backup` (no timestamps)
+- Skip existing `.claude/` install
+- Handle clean + existing installs
+
+### Settings Format
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "key",
+    "ANTHROPIC_MODEL": "glm-4.6",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.6",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.6",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.6"
+  }
+}
+```
+
+All values = strings (not booleans/objects) to prevent PowerShell crashes.
+
+### Profile Files
+
+**profiles.json** (account-based):
+```json
+{"profiles": {"work": "~/.ccs/instances/work"}}
+```
+
+**config.json** (settings-based):
+```json
+{"profiles": {"glm": "~/.ccs/glm.settings.json"}}
+```
+
+## GLMT Troubleshooting
+
+**API Key Issues**:
+```bash
+# Error: GLMT profile requires Z.AI API key
+# Fix: Edit ~/.ccs/glmt.settings.json, set ANTHROPIC_AUTH_TOKEN
+```
+
+**Proxy Failures**:
+- Timeout (>30s): Proxy didn't start → check Node.js ≥14
+- Port conflicts: Uses random port, unlikely
+- Connection refused: Firewall blocking 127.0.0.1
+
+**No Thinking Blocks**:
+- Check Z.AI API plan supports reasoning_content
+- Verify `<Thinking:On>` tag not overridden
+- Test with `ccs glm` (no thinking) to isolate proxy issues
+
+**Streaming Disclaimer**:
+- GLMT uses buffered mode (streaming not supported)
+- Trade-off: thinking capability vs streaming speed
+
+**Debug Mode**:
+```bash
+# Verbose logging
+ccs glmt --verbose "test"
+
+# File logging
+export CCS_DEBUG_LOG=1
+ccs glmt --verbose "test"
+# Logs: ~/.ccs/logs/
+```
 
 ## Error Handling
 
@@ -325,3 +346,9 @@ Before PR:
 - Suggest recovery steps
 - Never leave broken state
 - Guide to `ccs auth create` if profile missing
+
+## Claude Code Integration
+
+`.claude/` contains:
+- `/ccs` command: Task delegation to different models
+- `ccs-delegation` skill: Delegation patterns

@@ -33,6 +33,7 @@ function validateConfiguration() {
   const requiredFiles = [
     { path: path.join(ccsDir, 'config.json'), name: 'config.json' },
     { path: path.join(ccsDir, 'glm.settings.json'), name: 'glm.settings.json' },
+    { path: path.join(ccsDir, 'glmt.settings.json'), name: 'glmt.settings.json' },
     { path: path.join(ccsDir, 'kimi.settings.json'), name: 'kimi.settings.json' }
   ];
 
@@ -108,6 +109,7 @@ function createConfigFiles() {
       const config = {
         profiles: {
           glm: '~/.ccs/glm.settings.json',
+          glmt: '~/.ccs/glmt.settings.json',
           kimi: '~/.ccs/kimi.settings.json',
           default: '~/.claude/settings.json'
         }
@@ -120,7 +122,21 @@ function createConfigFiles() {
 
       console.log('[OK] Created config: ~/.ccs/config.json');
     } else {
-      console.log('[OK] Config exists: ~/.ccs/config.json (preserved)');
+      // Update existing config with glmt if missing (migration for v3.x users)
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      // Ensure profiles object exists
+      if (!config.profiles) {
+        config.profiles = {};
+      }
+      if (!config.profiles.glmt) {
+        config.profiles.glmt = '~/.ccs/glmt.settings.json';
+        const tmpPath = `${configPath}.tmp`;
+        fs.writeFileSync(tmpPath, JSON.stringify(config, null, 2) + '\n', 'utf8');
+        fs.renameSync(tmpPath, configPath);
+        console.log('[OK] Updated config with GLMT profile');
+      } else {
+        console.log('[OK] Config exists: ~/.ccs/config.json (preserved)');
+      }
     }
 
     // Create glm.settings.json if missing
@@ -150,6 +166,94 @@ function createConfigFiles() {
       console.log('      3. Replace: YOUR_GLM_API_KEY_HERE');
     } else {
       console.log('[OK] GLM profile exists: ~/.ccs/glm.settings.json (preserved)');
+    }
+
+    // Create glmt.settings.json if missing
+    const glmtSettingsPath = path.join(ccsDir, 'glmt.settings.json');
+    if (!fs.existsSync(glmtSettingsPath)) {
+      const glmtSettings = {
+        env: {
+          ANTHROPIC_BASE_URL: 'https://api.z.ai/api/coding/paas/v4/chat/completions',
+          ANTHROPIC_AUTH_TOKEN: 'YOUR_GLM_API_KEY_HERE',
+          ANTHROPIC_MODEL: 'glm-4.6',
+          ANTHROPIC_DEFAULT_OPUS_MODEL: 'glm-4.6',
+          ANTHROPIC_DEFAULT_SONNET_MODEL: 'glm-4.6',
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: 'glm-4.6',
+          ANTHROPIC_TEMPERATURE: '0.2',
+          ANTHROPIC_MAX_TOKENS: '65536',
+          MAX_THINKING_TOKENS: '32768',
+          ENABLE_STREAMING: 'true',
+          ANTHROPIC_SAFE_MODE: 'false',
+          API_TIMEOUT_MS: '3000000'
+        },
+        alwaysThinkingEnabled: true
+      };
+
+      // Atomic write
+      const tmpPath = `${glmtSettingsPath}.tmp`;
+      fs.writeFileSync(tmpPath, JSON.stringify(glmtSettings, null, 2) + '\n', 'utf8');
+      fs.renameSync(tmpPath, glmtSettingsPath);
+
+      console.log('[OK] Created GLMT profile: ~/.ccs/glmt.settings.json');
+      console.log('');
+      console.log('  [!] Configure GLMT API key:');
+      console.log('      1. Get key from: https://api.z.ai');
+      console.log('      2. Edit: ~/.ccs/glmt.settings.json');
+      console.log('      3. Replace: YOUR_GLM_API_KEY_HERE');
+      console.log('      Note: GLMT enables GLM thinking mode (reasoning)');
+      console.log('      Defaults: Temperature 0.2, thinking enabled, 50min timeout');
+    } else {
+      console.log('[OK] GLMT profile exists: ~/.ccs/glmt.settings.json (preserved)');
+    }
+
+    // Migrate existing GLMT configs to include new defaults (v3.3.0)
+    if (fs.existsSync(glmtSettingsPath)) {
+      try {
+        const existing = JSON.parse(fs.readFileSync(glmtSettingsPath, 'utf8'));
+        let updated = false;
+
+        // Ensure env object exists
+        if (!existing.env) {
+          existing.env = {};
+          updated = true;
+        }
+
+        // Add missing env vars (preserve existing values)
+        const envDefaults = {
+          ANTHROPIC_TEMPERATURE: '0.2',
+          ANTHROPIC_MAX_TOKENS: '65536',
+          MAX_THINKING_TOKENS: '32768',
+          ENABLE_STREAMING: 'true',
+          ANTHROPIC_SAFE_MODE: 'false',
+          API_TIMEOUT_MS: '3000000'
+        };
+
+        for (const [key, value] of Object.entries(envDefaults)) {
+          if (existing.env[key] === undefined) {
+            existing.env[key] = value;
+            updated = true;
+          }
+        }
+
+        // Add alwaysThinkingEnabled if missing
+        if (existing.alwaysThinkingEnabled === undefined) {
+          existing.alwaysThinkingEnabled = true;
+          updated = true;
+        }
+
+        // Write back if updated
+        if (updated) {
+          const tmpPath = `${glmtSettingsPath}.tmp`;
+          fs.writeFileSync(tmpPath, JSON.stringify(existing, null, 2) + '\n', 'utf8');
+          fs.renameSync(tmpPath, glmtSettingsPath);
+          console.log('[OK] Migrated GLMT config with new defaults (v3.3.0)');
+          console.log('     Added: temperature, max_tokens, thinking settings, alwaysThinkingEnabled');
+        }
+      } catch (err) {
+        console.warn('[!] GLMT config migration failed:', err.message);
+        console.warn('    Existing config preserved, may be missing new defaults');
+        console.warn('    You can manually add fields or delete file to regenerate');
+      }
     }
 
     // Create kimi.settings.json if missing

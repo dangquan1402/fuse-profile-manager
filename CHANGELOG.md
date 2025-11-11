@@ -4,6 +4,50 @@ All notable changes to CCS will be documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.3.0] - 2025-11-11
+
+### Added
+
+**GLMT Improvements**:
+- Debug mode: `CCS_DEBUG_LOG=1` logs raw API request/response to `~/.ccs/logs/`
+- Verbose flag support: `ccs glmt --verbose` shows detailed transformation info
+- Config defaults: Added `alwaysThinkingEnabled`, temperature, timeouts, telemetry settings
+- Reasoning detection verbose output: Shows length, preview, validation
+- Config migration: v3.2.0 users auto-upgraded with API keys preserved
+
+### Changed
+
+**Log Cleanup**:
+- Removed duplicate streaming warnings per request
+- Added one-time startup info message
+- Improved error messages with actionable troubleshooting steps
+
+### Fixed
+
+**Config Consistency**:
+- GLMT profile now has `alwaysThinkingEnabled: true` (matches Kimi)
+- Added optimal defaults for thinking mode (temperature 0.2, extended timeouts)
+- Migration preserves user-modified values
+
+### Documentation
+
+**Troubleshooting Guide**:
+- Clarified duplicate "Enchanting" lines are Claude CLI issue (out of CCS scope)
+- Added debugging workflow for thinking visibility issues
+- Documented new verbose and debug modes
+- Added config customization examples
+
+### Important Notes
+
+**GLMT Implementation Status**:
+- ✅ **Node.js version** (`bin/ccs.js`): Fully implemented and tested
+- ⏳ **Native shell versions** (`lib/ccs`, `lib/ccs.ps1`): Not yet implemented
+- **Reason**: GLMT requires embedded proxy server (Node.js HTTP server)
+- **Workaround**: Use npm package installation for GLMT support
+- **Future**: Native shell GLMT support planned for future release
+
+---
+
 ## [3.2.0] - 2025-11-10
 
 ### Changed
