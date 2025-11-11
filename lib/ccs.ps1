@@ -12,7 +12,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Version (updated by scripts/bump-version.sh)
-$CcsVersion = "3.0.2"
+$CcsVersion = "3.1.0"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigFile = if ($env:CCS_CONFIG) { $env:CCS_CONFIG } else { "$env:USERPROFILE\.ccs\config.json" }
 $ProfilesJson = "$env:USERPROFILE\.ccs\profiles.json"
@@ -123,9 +123,15 @@ function Show-Help {
     Write-ColorLine "  -v, --version               Show version and installation info" "Yellow"
     Write-Host ""
     Write-ColorLine "Configuration:" "Cyan"
-    Write-Host "  Config:   ~/.ccs/config.json"
-    Write-Host "  Profiles: ~/.ccs/profiles.json"
-    Write-Host "  Settings: ~/.ccs/*.settings.json"
+    Write-Host "  Config:    ~/.ccs/config.json"
+    Write-Host "  Profiles:  ~/.ccs/profiles.json"
+    Write-Host "  Instances: ~/.ccs/instances/"
+    Write-Host "  Settings:  ~/.ccs/*.settings.json"
+    Write-Host ""
+    Write-ColorLine "Shared Data:" "Cyan"
+    Write-Host "  Commands:  ~/.ccs/shared/commands/"
+    Write-Host "  Skills:    ~/.ccs/shared/skills/"
+    Write-Host "  Note: Commands, skills, and agents are symlinked across all profiles"
     Write-Host ""
     Write-ColorLine "Documentation:" "Cyan"
     Write-Host "  GitHub:  https://github.com/kaitranntt/ccs"
@@ -422,27 +428,105 @@ function Set-InstancePermissions {
     Set-Acl -Path $Path -AclObject $Acl
 }
 
+function Link-SharedDirectories {
+    param([string]$InstancePath)
+
+    $SharedDir = "$env:USERPROFILE\.ccs\shared"
+
+    # Ensure shared directories exist
+    @('commands', 'skills', 'agents') | ForEach-Object {
+        $Dir = Join-Path $SharedDir $_
+        if (-not (Test-Path $Dir)) {
+            New-Item -ItemType Directory -Path $Dir -Force | Out-Null
+        }
+    }
+
+    # Create symlinks (requires Windows Developer Mode or admin)
+    @('commands', 'skills', 'agents') | ForEach-Object {
+        $LinkPath = Join-Path $InstancePath $_
+        $TargetPath = Join-Path $SharedDir $_
+
+        # Remove existing directory/link
+        if (Test-Path $LinkPath) {
+            Remove-Item $LinkPath -Recurse -Force
+        }
+
+        # Try creating symlink (requires privileges)
+        try {
+            New-Item -ItemType SymbolicLink -Path $LinkPath -Target $TargetPath -Force | Out-Null
+        } catch {
+            # Fallback: Copy directory instead (suboptimal but functional)
+            Copy-Item $TargetPath -Destination $LinkPath -Recurse -Force
+            Write-Host "[!] Symlink failed for $_, copied instead (enable Developer Mode)" -ForegroundColor Yellow
+        }
+    }
+}
+
+function Migrate-SharedStructure {
+    $SharedDir = "$env:USERPROFILE\.ccs\shared"
+
+    # Check if migration is needed (shared dirs exist but are empty)
+    if (Test-Path $SharedDir) {
+        $NeedsMigration = $false
+        foreach ($Dir in @('commands', 'skills', 'agents')) {
+            $DirPath = Join-Path $SharedDir $Dir
+            if (-not (Test-Path $DirPath) -or (Get-ChildItem $DirPath -ErrorAction SilentlyContinue).Count -eq 0) {
+                $NeedsMigration = $true
+                break
+            }
+        }
+
+        if (-not $NeedsMigration) { return }
+    }
+
+    # Create shared directory
+    @('commands', 'skills', 'agents') | ForEach-Object {
+        $Dir = Join-Path $SharedDir $_
+        New-Item -ItemType Directory -Path $Dir -Force | Out-Null
+    }
+
+    # Copy from ~/.claude/ (actual Claude CLI directory)
+    $ClaudeDir = "$env:USERPROFILE\.claude"
+
+    if (Test-Path $ClaudeDir) {
+        # Copy commands to shared (if exists)
+        $CommandsPath = Join-Path $ClaudeDir "commands"
+        if (Test-Path $CommandsPath) {
+            Copy-Item "$CommandsPath\*" -Destination "$SharedDir\commands\" -Recurse -ErrorAction SilentlyContinue
+        }
+
+        # Copy skills to shared (if exists)
+        $SkillsPath = Join-Path $ClaudeDir "skills"
+        if (Test-Path $SkillsPath) {
+            Copy-Item "$SkillsPath\*" -Destination "$SharedDir\skills\" -Recurse -ErrorAction SilentlyContinue
+        }
+
+        # Copy agents to shared (if exists)
+        $AgentsPath = Join-Path $ClaudeDir "agents"
+        if (Test-Path $AgentsPath) {
+            Copy-Item "$AgentsPath\*" -Destination "$SharedDir\agents\" -Recurse -ErrorAction SilentlyContinue
+        }
+    }
+
+    # Update all instances to use symlinks
+    if (Test-Path $InstancesDir) {
+        Get-ChildItem $InstancesDir -Directory | ForEach-Object {
+            Link-SharedDirectories $_.FullName
+        }
+    }
+
+    Write-Host "[OK] Migrated to shared structure"
+}
+
 function Copy-GlobalConfigs {
     param([string]$InstancePath)
 
     $GlobalClaude = "$env:USERPROFILE\.claude"
 
-    # Copy settings.json
+    # Copy settings.json only (commands/skills are now symlinked to shared/)
     $GlobalSettings = Join-Path $GlobalClaude "settings.json"
     if (Test-Path $GlobalSettings) {
         Copy-Item $GlobalSettings -Destination (Join-Path $InstancePath "settings.json") -ErrorAction SilentlyContinue
-    }
-
-    # Copy commands/
-    $GlobalCommands = Join-Path $GlobalClaude "commands"
-    if (Test-Path $GlobalCommands) {
-        Copy-Item $GlobalCommands -Destination $InstancePath -Recurse -ErrorAction SilentlyContinue
-    }
-
-    # Copy skills/
-    $GlobalSkills = Join-Path $GlobalClaude "skills"
-    if (Test-Path $GlobalSkills) {
-        Copy-Item $GlobalSkills -Destination $InstancePath -Recurse -ErrorAction SilentlyContinue
     }
 }
 
@@ -453,14 +537,17 @@ function Initialize-Instance {
     New-Item -ItemType Directory -Path $InstancePath -Force | Out-Null
     Set-InstancePermissions $InstancePath
 
-    # Create subdirectories
+    # Create subdirectories (profile-specific only)
     $Subdirs = @('session-env', 'todos', 'logs', 'file-history',
-                  'shell-snapshots', 'debug', '.anthropic', 'commands', 'skills')
+                  'shell-snapshots', 'debug', '.anthropic')
 
     foreach ($Dir in $Subdirs) {
         $DirPath = Join-Path $InstancePath $Dir
         New-Item -ItemType Directory -Path $DirPath -Force | Out-Null
     }
+
+    # Symlink shared directories
+    Link-SharedDirectories $InstancePath
 
     # Copy global configs
     Copy-GlobalConfigs $InstancePath
@@ -912,6 +999,9 @@ if (-not (Invoke-AutoRecovery)) {
     Write-ErrorMsg "Auto-recovery failed. Check permissions."
     exit 1
 }
+
+# Run migration to shared structure (Phase 1: idempotent)
+Migrate-SharedStructure
 
 # Smart profile detection: if first arg starts with '-', it's a flag not a profile
 if ($RemainingArgs.Count -eq 0 -or $RemainingArgs[0] -match '^-') {

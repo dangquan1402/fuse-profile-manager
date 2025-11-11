@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Version (updated by scripts/bump-version.sh)
-CCS_VERSION="3.0.2"
+CCS_VERSION="3.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly CONFIG_FILE="${CCS_CONFIG:-$HOME/.ccs/config.json}"
 readonly PROFILES_JSON="$HOME/.ccs/profiles.json"
@@ -67,9 +67,15 @@ show_help() {
   echo -e "  ${YELLOW}-v, --version${RESET}               Show version and installation info"
   echo ""
   echo -e "${CYAN}Configuration:${RESET}"
-  echo -e "  Config:   ~/.ccs/config.json"
-  echo -e "  Profiles: ~/.ccs/profiles.json"
-  echo -e "  Settings: ~/.ccs/*.settings.json"
+  echo -e "  Config:    ~/.ccs/config.json"
+  echo -e "  Profiles:  ~/.ccs/profiles.json"
+  echo -e "  Instances: ~/.ccs/instances/"
+  echo -e "  Settings:  ~/.ccs/*.settings.json"
+  echo ""
+  echo -e "${CYAN}Shared Data:${RESET}"
+  echo -e "  Commands:  ~/.ccs/shared/commands/"
+  echo -e "  Skills:    ~/.ccs/shared/skills/"
+  echo -e "  Note: Commands, skills, and agents are symlinked across all profiles"
   echo ""
   echo -e "${CYAN}Documentation:${RESET}"
   echo -e "  GitHub:  ${CYAN}https://github.com/kaitranntt/ccs${RESET}"
@@ -493,6 +499,73 @@ sanitize_profile_name() {
   echo "$name" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]/-/g'
 }
 
+# Link shared directories (Phase 1: Shared Global Data)
+link_shared_directories() {
+  local instance_path="$1"
+  local shared_dir="$HOME/.ccs/shared"
+
+  # Ensure shared directories exist
+  mkdir -p "$shared_dir"/{commands,skills,agents}
+
+  # Create symlinks (remove existing first if present)
+  for dir in commands skills agents; do
+    local link_path="$instance_path/$dir"
+    local target_path="$shared_dir/$dir"
+
+    # Remove existing directory/link
+    [[ -e "$link_path" ]] && rm -rf "$link_path"
+
+    # Create symlink
+    ln -sf "$target_path" "$link_path"
+  done
+}
+
+# Migrate to shared structure (Phase 1: Auto-migration)
+migrate_to_shared_structure() {
+  local shared_dir="$HOME/.ccs/shared"
+
+  # Check if migration is needed (shared dirs exist but are empty)
+  if [[ -d "$shared_dir" ]]; then
+    local needs_migration=false
+    for dir in commands skills agents; do
+      if [[ ! -d "$shared_dir/$dir" ]] || [[ -z "$(ls -A "$shared_dir/$dir" 2>/dev/null)" ]]; then
+        needs_migration=true
+        break
+      fi
+    done
+
+    [[ "$needs_migration" == "false" ]] && return 0
+  fi
+
+  # Create shared directory
+  mkdir -p "$shared_dir"/{commands,skills,agents}
+
+  # Copy from ~/.claude/ (actual Claude CLI directory)
+  local claude_dir="$HOME/.claude"
+
+  if [[ -d "$claude_dir" ]]; then
+    # Copy commands to shared (if exists)
+    [[ -d "$claude_dir/commands" ]] && \
+      cp -r "$claude_dir/commands"/* "$shared_dir/commands/" 2>/dev/null || true
+
+    # Copy skills to shared (if exists)
+    [[ -d "$claude_dir/skills" ]] && \
+      cp -r "$claude_dir/skills"/* "$shared_dir/skills/" 2>/dev/null || true
+
+    # Copy agents to shared (if exists)
+    [[ -d "$claude_dir/agents" ]] && \
+      cp -r "$claude_dir/agents"/* "$shared_dir/agents/" 2>/dev/null || true
+  fi
+
+  # Update all instances to use symlinks
+  for instance_path in "$INSTANCES_DIR"/*; do
+    [[ -d "$instance_path" ]] || continue
+    link_shared_directories "$instance_path"
+  done
+
+  echo "[OK] Migrated to shared structure"
+}
+
 # Initialize new instance directory
 initialize_instance() {
   local instance_path="$1"
@@ -500,11 +573,14 @@ initialize_instance() {
   # Create base directory
   mkdir -m 0700 -p "$instance_path"
 
-  # Create subdirectories
-  local subdirs=(session-env todos logs file-history shell-snapshots debug .anthropic commands skills)
+  # Create subdirectories (profile-specific only)
+  local subdirs=(session-env todos logs file-history shell-snapshots debug .anthropic)
   for dir in "${subdirs[@]}"; do
     mkdir -m 0700 -p "$instance_path/$dir"
   done
+
+  # Symlink shared directories
+  link_shared_directories "$instance_path"
 
   # Copy global configs (optional)
   copy_global_configs "$instance_path"
@@ -527,17 +603,9 @@ copy_global_configs() {
   local instance_path="$1"
   local global_claude="$HOME/.claude"
 
-  # Copy settings.json
+  # Copy settings.json only (commands/skills are now symlinked to shared/)
   [[ -f "$global_claude/settings.json" ]] && \
     cp "$global_claude/settings.json" "$instance_path/settings.json" 2>/dev/null || true
-
-  # Copy commands/
-  [[ -d "$global_claude/commands" ]] && \
-    cp -r "$global_claude/commands" "$instance_path/" 2>/dev/null || true
-
-  # Copy skills/
-  [[ -d "$global_claude/skills" ]] && \
-    cp -r "$global_claude/skills" "$instance_path/" 2>/dev/null || true
 }
 
 # Ensure instance exists (lazy initialization)
@@ -941,6 +1009,9 @@ auto_recover || {
   msg_error "Auto-recovery failed. Check permissions."
   exit 1
 }
+
+# Run migration to shared structure (Phase 1: idempotent)
+migrate_to_shared_structure
 
 # Smart profile detection: if first arg starts with '-', it's a flag not a profile
 if [[ $# -eq 0 ]] || [[ "${1}" =~ ^- ]]; then

@@ -4,6 +4,33 @@ All notable changes to CCS will be documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.1.0] - 2025-11-10
+
+### Added
+- **Shared Data Architecture** (Phase 1): Commands, skills, and agents now shared across all profiles
+  - Single source: `~/.ccs/shared/{commands,skills,agents}` symlinked to all instances
+  - Eliminates duplication across profile instances
+  - Profile-specific data remains isolated (settings, sessions, todolists, logs)
+  - Auto-migration from `~/.claude/` to `~/.ccs/shared/` on first run
+  - Windows fallback: copies directories if symlinks fail (enable Developer Mode for native symlinks)
+
+### Fixed
+- **Migration Logic**: Fixed bug where migration check only verified directory existence
+  - Migration now detects empty directories (postinstall creates empty dirs, causing skip)
+  - Properly copies from `~/.claude/` when shared directories are empty
+  - Idempotent: safe to run multiple times, only migrates when needed
+
+### Changed
+- Instance initialization now symlinks to shared directories instead of copying
+- Postinstall creates `~/.ccs/shared/` structure automatically
+- All three implementations (Node.js, bash, PowerShell) updated for consistency
+
+### Technical Details
+- **New Files**: `bin/shared-manager.js` - SharedManager class for symlink orchestration
+- **Modified Files**: `bin/ccs.js`, `lib/ccs`, `lib/ccs.ps1`, `scripts/postinstall.js`
+- **Migration**: Runs automatically during first `ccs` execution after install
+- **Cross-Platform**: Symlink support with graceful Windows fallback
+
 ## [3.0.2] - 2025-11-10
 
 ### Fixed

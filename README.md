@@ -92,6 +92,16 @@ $env:CCS_CLAUDE_PATH = "D:\Tools\Claude\claude.exe"   # Windows
 
 **See [Troubleshooting Guide](./docs/en/troubleshooting.md#claude-cli-in-non-standard-location) for detailed setup instructions.**
 
+### Windows Symlink Support (Developer Mode)
+
+**Windows users**: Enable Developer Mode for true symlinks (better performance, instant sync):
+
+1. Open **Settings** → **Privacy & Security** → **For developers**
+2. Enable **Developer Mode**
+3. Reinstall CCS: `npm install -g @kaitranntt/ccs`
+
+**Without Developer Mode**: CCS automatically falls back to copying directories (works but no instant sync across profiles).
+
 ---
 
 ### Your First Switch
@@ -150,6 +160,44 @@ ccs glm           # Continue working with GLM
 # Need different company account?
 ccs work-2        # Switch to second company account
 ```
+
+---
+
+## 📁 Shared Data Architecture
+
+**v3.1 Shared Global Data**: Commands and skills are symlinked across all profiles via `~/.ccs/shared/`, eliminating duplication.
+
+**Directory Structure**:
+```
+~/.ccs/
+├── shared/                  # Shared across all profiles
+│   ├── commands/            # Custom slash commands
+│   └── skills/              # Claude Code skills
+├── instances/               # Profile-specific data
+│   ├── work/
+│   │   ├── commands@ → ~/.ccs/shared/commands/  # Symlink
+│   │   ├── skills@ → ~/.ccs/shared/skills/      # Symlink
+│   │   ├── settings.json    # Profile-specific config
+│   │   └── sessions/        # Profile-specific sessions
+│   └── personal/
+│       └── ...
+```
+
+**Benefits**:
+- No duplication of commands/skills across profiles
+- Single source of truth for shared resources
+- Automatic migration from v3.0 (runs on first use)
+- Windows fallback: copies if symlinks unavailable (enable Developer Mode for true symlinks)
+
+**What's Shared**:
+- `.claude/commands/` - Custom slash commands
+- `.claude/skills/` - Claude Code skills
+
+**What's Profile-Specific**:
+- `settings.json` - API keys, credentials
+- `sessions/` - Conversation history
+- `todolists/` - Task tracking
+- `logs/` - Profile-specific logs
 
 ---
 

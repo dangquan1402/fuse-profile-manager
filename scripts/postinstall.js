@@ -72,6 +72,23 @@ function createConfigFiles() {
       console.log('[OK] Created directory: ~/.ccs/');
     }
 
+    // Create ~/.ccs/shared/ directory structure (Phase 1)
+    const sharedDir = path.join(ccsDir, 'shared');
+    if (!fs.existsSync(sharedDir)) {
+      fs.mkdirSync(sharedDir, { recursive: true, mode: 0o755 });
+      console.log('[OK] Created directory: ~/.ccs/shared/');
+    }
+
+    // Create shared subdirectories
+    const sharedSubdirs = ['commands', 'skills', 'agents'];
+    for (const subdir of sharedSubdirs) {
+      const subdirPath = path.join(sharedDir, subdir);
+      if (!fs.existsSync(subdirPath)) {
+        fs.mkdirSync(subdirPath, { recursive: true, mode: 0o755 });
+        console.log(`[OK] Created directory: ~/.ccs/shared/${subdir}/`);
+      }
+    }
+
     // Create config.json if missing
     const configPath = path.join(ccsDir, 'config.json');
     if (!fs.existsSync(configPath)) {

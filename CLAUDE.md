@@ -1,257 +1,250 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working with this repository.
 
 ## Project Overview
 
-CCS (Claude Code Switch) is a lightweight CLI wrapper enabling instant switching between **multiple Claude subscription accounts** (work, personal, team) and alternative models (GLM 4.6, Kimi for Coding). Built on v3.0 login-per-profile architecture where each profile is an isolated Claude instance.
+CCS (Claude Code Switch): CLI wrapper for instant switching between multiple Claude accounts (work, personal, team) and alternative models (GLM 4.6, Kimi). Built on v3.1 login-per-profile architecture with shared data support.
 
-**Primary Installation Methods** (highest priority):
-- **npm Package** (recommended): `npm install -g @kaitranntt/ccs` (cross-platform)
+**Installation**:
+- npm: `npm install -g @kaitranntt/ccs` (recommended)
 - macOS/Linux: `curl -fsSL ccs.kaitran.ca/install | bash`
 - Windows: `irm ccs.kaitran.ca/install | iex`
 
 ## Core Design Principles
 
-**YAGNI** (You Aren't Gonna Need It): No features "just in case"
-**KISS** (Keep It Simple): Simple bash/PowerShell/Node.js, no complexity
-**DRY** (Don't Repeat Yourself): One source of truth (config.json)
-**CLI-First UX**: The primary user experience is through the command-line interface
+- **YAGNI**: No features "just in case"
+- **KISS**: Simple bash/PowerShell/Node.js, no complexity
+- **DRY**: One source of truth (config.json)
+- **CLI-First UX**: Command-line is primary interface
 
-The tool does ONE thing: enable instant switching between Claude accounts and alternative models. Never add features that violate these principles.
+Tool does ONE thing: instant switching between Claude accounts and alternative models.
 
-### CLI Documentation Requirement (CRITICAL)
+### CLI Documentation (CRITICAL)
 
-**All functionality changes MUST update `--help` output across all implementations:**
-- `bin/ccs.js` - handleHelpCommand() function
-- `lib/ccs` - show_help() function (bash)
-- `lib/ccs.ps1` - Show-Help function (PowerShell)
+**All functionality changes MUST update `--help` in ALL implementations:**
+- `bin/ccs.js` - handleHelpCommand()
+- `lib/ccs` - show_help()
+- `lib/ccs.ps1` - Show-Help
 
-This is non-negotiable. The CLI help is the primary documentation users reference. If a feature exists but isn't documented in `--help`, it effectively doesn't exist for users.
+Non-negotiable. If not in `--help`, it doesn't exist for users.
 
 ## Key Constraints
 
-1. **NO EMOJIS in terminal output** - Use ASCII symbols ([OK], [!], [X], [i]) for compatibility
-2. **TTY-aware color output** - Colors only when output to terminal, respects NO_COLOR env var
-3. **Unified install location** (v2.2.0+):
-   - All Unix: `~/.local/bin` (auto PATH config, no sudo)
+1. **NO EMOJIS** - ASCII only: [OK], [!], [X], [i]
+2. **TTY-aware colors** - Respect NO_COLOR env var
+3. **Install locations**:
+   - Unix: `~/.local/bin` (auto PATH, no sudo)
    - Windows: `%USERPROFILE%\.ccs`
-4. **Auto PATH configuration** - Detects shell (bash/zsh/fish), adds to profile automatically
-5. **Idempotent installations** - Running install scripts multiple times must be safe
+4. **Auto PATH config** - Detects bash/zsh/fish, adds automatically
+5. **Idempotent installs** - Safe to run multiple times
 6. **Non-invasive** - Never modify `~/.claude/settings.json`
-7. **Cross-platform parity** - Identical behavior on Unix/Linux/macOS/Windows
-8. **Edge case handling** - Handle all scenarios gracefully (see tests/edge-cases.sh)
+7. **Cross-platform parity** - Identical behavior everywhere
+8. **Graceful error handling** - See tests/edge-cases.sh
 
 ## Architecture
 
-### v3.0 Key Features
+### v3.1 Features
 
-**Login-Per-Profile Model**: Each profile is an isolated Claude instance where users login directly via `ccs auth create <profile>`. No credential copying, no vault encryption.
+**Login-Per-Profile**: Each profile = isolated Claude instance via `ccs auth create <profile>`. No credential copying/encryption.
 
-**Two Profile Types**:
-1. **Settings-based** (models): GLM, Kimi, default - uses `--settings` flag
-2. **Account-based** (Claude accounts): work, personal, team - uses `CLAUDE_CONFIG_DIR`
+**Profile Types**:
+1. **Settings-based**: GLM, Kimi, default - uses `--settings` flag
+2. **Account-based**: work, personal, team - uses `CLAUDE_CONFIG_DIR`
 
-**Concurrent Sessions**: Multiple profiles can run simultaneously in different terminals via isolated config directories.
+**Shared Data** (v3.1): commands/, skills/, agents/ symlinked from `~/.ccs/shared/`
 
-### Implementation Variants
+**Concurrent Sessions**: Multiple profiles run simultaneously via isolated config dirs.
 
-**npm package**: Pure Node.js (bin/ccs.js) using child_process.spawn
-**Traditional install**: Platform-specific bash (lib/ccs) or PowerShell (lib/ccs.ps1)
+**Implementations**:
+- npm package: Pure Node.js (bin/ccs.js) using child_process.spawn
+- Traditional: bash (lib/ccs) or PowerShell (lib/ccs.ps1)
 
 ### File Structure
 
 **Key Files**:
-- `package.json`: npm package manifest with bin field configuration and postinstall script
-- `bin/ccs.js`: Cross-platform Node.js entry point (npm package)
-- `scripts/postinstall.js`: Auto-creates config files during npm install (idempotent)
-- `lib/ccs` (bash) / `lib/ccs.ps1` (PowerShell): Platform-specific executable wrappers
-- `installers/install.sh` / `installers/install.ps1`: Traditional installation scripts
-- `installers/uninstall.sh` / `installers/uninstall.ps1`: Removal scripts
-- `VERSION`: Single source of truth for version (format: MAJOR.MINOR.PATCH)
-- `.claude/`: Commands and skills for Claude Code integration
+- `package.json`: npm manifest + postinstall
+- `bin/ccs.js`: Node.js entry point
+- `bin/instance-manager.js`: Instance orchestration
+- `bin/shared-manager.js`: Shared data symlinks (v3.1)
+- `scripts/postinstall.js`: Auto-creates configs (idempotent)
+- `lib/ccs` / `lib/ccs.ps1`: Platform-specific executables
+- `installers/*.sh` / `installers/*.ps1`: Install/uninstall scripts
+- `VERSION`: Version source of truth (MAJOR.MINOR.PATCH)
+- `.claude/`: Commands/skills for Claude Code
 
-**Executable Locations**:
-- macOS / Linux: `~/.local/bin/ccs` (symlink to `~/.ccs/ccs`)
+**Executables**:
+- Unix: `~/.local/bin/ccs` → `~/.ccs/ccs`
 - Windows: `%USERPROFILE%\.ccs\ccs.ps1`
 
-**Configuration Directory**:
+**Config Directory** (v3.1):
 ```
 ~/.ccs/
-├── ccs                     # Main executable (or ccs.ps1 on Windows)
-├── config.json             # Settings-based profile mappings
-├── profiles.json           # Account-based profile registry (v3.0)
-├── instances/              # Isolated Claude instances (v3.0)
-│   ├── work/               # Each profile gets own directory
-│   ├── personal/
-│   └── team/
-├── config.json.backup      # Single backup (overwrites on each install)
-├── glm.settings.json       # GLM profile template
-├── kimi.settings.json      # Kimi profile template
-├── VERSION                 # Version file copy
-├── uninstall.sh            # Uninstaller (or ccs-uninstall.ps1 on Windows)
-└── .claude/                # Claude Code integration
-    ├── commands/ccs.md
-    └── skills/ccs-delegation/
+├── ccs / ccs.ps1           # Executable
+├── config.json             # Settings-based profiles
+├── profiles.json           # Account-based profiles
+├── shared/                 # Shared across all (v3.1)
+│   ├── commands/           # Slash commands
+│   ├── skills/             # Claude skills
+│   └── agents/             # Agent configs
+├── instances/              # Isolated per-profile
+│   └── work/
+│       ├── commands@ → shared/commands/  # Symlink
+│       ├── skills@ → shared/skills/      # Symlink
+│       ├── agents@ → shared/agents/      # Symlink
+│       ├── settings.json   # Profile-specific
+│       ├── sessions/       # Profile-specific
+│       ├── todolists/      # Profile-specific
+│       └── logs/           # Profile-specific
+├── glm.settings.json       # GLM template
+├── kimi.settings.json      # Kimi template
+└── .claude/                # Integration
 ```
 
-### v3.0 Technical Implementation
+**v3.1 Data Structure**:
+- **Shared**: commands/, skills/, agents/ → symlinked from `~/.ccs/shared/`
+- **Profile-specific**: settings.json, sessions/, todolists/, logs/
+- **Windows**: Copies dirs if symlinks fail (enable Developer Mode for symlinks)
 
-**Account-Based Profiles** (v3.0):
+### Technical Implementation
+
+**Account-Based Profiles**:
 ```bash
-# Create profile (opens Claude CLI for login)
-ccs auth create work
+# Create profile
+ccs auth create work  # Opens Claude CLI for login
 
-# Creates ~/.ccs/instances/work/ with:
-# - settings.json (Claude's config)
-# - session files
-# - todo lists
-# - logs
-
-# Usage: Set CLAUDE_CONFIG_DIR before spawning Claude CLI
+# Usage
 CLAUDE_CONFIG_DIR=~/.ccs/instances/work claude [args]
 ```
 
-**Settings-Based Profiles** (legacy, still supported):
+**Shared Data** (v3.1):
+```javascript
+// bin/shared-manager.js
+ensureSharedDirectories()      // Creates shared/{commands,skills,agents}
+linkSharedDirectories(path)    // Symlinks instance to shared
+migrateToSharedStructure()     // Auto-migrates v3.0 (idempotent)
+```
+
+**Migration** (v3.0 → v3.1):
+1. Detect if `~/.ccs/shared/` exists (skip if present)
+2. Create `~/.ccs/shared/{commands,skills,agents}`
+3. Copy from `~/.claude/` (preserves data)
+4. Symlink all instances to shared
+5. Windows: Copy dirs if symlinks fail
+
+**Settings-Based Profiles**:
 ```bash
-# Usage: Pass --settings flag to Claude CLI
 claude --settings ~/.ccs/glm.settings.json [args]
 ```
 
-**Profile Detection Logic**:
-1. Check if profile exists in `profiles.json` (account-based)
-2. If yes → use `CLAUDE_CONFIG_DIR` method
-3. If no → check `config.json` (settings-based)
-4. If yes → use `--settings` method
-5. If no → show error with available profiles
+**Profile Detection**:
+1. Check `profiles.json` (account-based) → use `CLAUDE_CONFIG_DIR`
+2. Check `config.json` (settings-based) → use `--settings`
+3. Not found → show error + available profiles
 
-## Development Commands
+## Development
 
 ### Version Management
 ```bash
-# Bump version (updates VERSION, install.sh, install.ps1)
-./scripts/bump-version.sh [major|minor|patch]
-
-# Get current version
-cat VERSION
-# or
-./scripts/get-version.sh
+./scripts/bump-version.sh [major|minor|patch]  # Updates VERSION, install scripts
+cat VERSION                                     # Check version
 ```
 
 ### Testing
 ```bash
-# Comprehensive edge case testing (Unix)
-./tests/edge-cases.sh
-
-# Comprehensive edge case testing (Windows)
-./tests/edge-cases.ps1
+./tests/edge-cases.sh      # Unix
+./tests/edge-cases.ps1     # Windows
 ```
 
 ### Local Development
 ```bash
-# Test local installation from git repo
-./installers/install.sh
+./installers/install.sh    # Test local install
+./ccs --version            # Verify
 
-# Test with local executable
-./ccs --version
-./ccs glm --help
+# Test npm package
+npm pack && npm install -g @kaitranntt-ccs-*.tgz
+ccs --version
+npm uninstall -g @kaitranntt/ccs && rm *.tgz
 
-# Test npm package locally
-npm pack                    # Creates @kaitranntt-ccs-X.Y.Z.tgz
-npm install -g @kaitranntt-ccs-X.Y.Z.tgz  # Test installation
-ccs --version               # Verify it works
-npm uninstall -g @kaitranntt/ccs   # Cleanup
-rm @kaitranntt-ccs-X.Y.Z.tgz        # Remove tarball
-
-# Clean test environment
-rm -rf ~/.ccs
+rm -rf ~/.ccs              # Clean environment
 ```
 
-### npm Package Publishing
+### Publishing
 ```bash
-# First-time setup (one-time)
-npm login                   # Login to npm account
-npm token create --type=granular --scope=publish  # Create token
-# Add NPM_TOKEN to GitHub Secrets
+# First-time: npm login, add NPM_TOKEN to GitHub Secrets
 
-# Publishing workflow
-./scripts/bump-version.sh patch  # Bump version
-git add VERSION package.json lib/ccs lib/ccs.ps1 installers/install.sh installers/install.ps1
+# Release workflow
+./scripts/bump-version.sh patch
+git add VERSION package.json lib/* installers/*
 git commit -m "chore: bump version to X.Y.Z"
 git tag vX.Y.Z
-git push origin main
-git push origin vX.Y.Z  # Triggers GitHub Actions publish
+git push origin main && git push origin vX.Y.Z  # Triggers CI
 
-# Manual publish (if needed)
-npm publish --dry-run    # Test before publishing
-npm publish --access public  # Publish to npm registry
+# Manual
+npm publish --dry-run && npm publish --access public
 ```
 
 ## Code Standards
 
-### Bash (Unix Systems)
-- Compatibility: bash 3.2+ (macOS default)
-- Always quote variables: `"$VAR"` not `$VAR`
-- Use `[[ ]]` for tests, not `[ ]`
-- Use `#!/usr/bin/env bash` shebang
-- Set `set -euo pipefail` for safety
-- Dependencies: Only `jq` for JSON parsing
+### Bash
+- Compatibility: bash 3.2+
+- Quote vars: `"$VAR"` not `$VAR`
+- Tests: `[[ ]]` not `[ ]`
+- Shebang: `#!/usr/bin/env bash`
+- Safety: `set -euo pipefail`
+- Dependency: `jq` only
 
 ### Terminal Output
-- **TTY Detection**: Check `[[ -t 2 ]]` before using colors (stderr)
-- **NO_COLOR Support**: Respect `${NO_COLOR:-}` environment variable
-- **ASCII Symbols Only**: [OK], [!], [X], [i] - no emojis
-- **Error Formatting**: Use box borders (╔═╗║╚╝) for critical messages
-- **Color Codes**: RED, YELLOW, GREEN, CYAN, BOLD, RESET - disable when not TTY
+- TTY detect: `[[ -t 2 ]]` before colors
+- Respect `NO_COLOR` env var
+- ASCII only: [OK], [!], [X], [i]
+- Errors: Box borders (╔═╗║╚╝)
+- Colors: Disable when not TTY
 
-### PowerShell (Windows)
+### PowerShell
 - Compatibility: PowerShell 5.1+
-- Use `$ErrorActionPreference = "Stop"`
-- Native JSON parsing via `ConvertFrom-Json` / `ConvertTo-Json`
-- No external dependencies required
+- `$ErrorActionPreference = "Stop"`
+- Native JSON: ConvertFrom-Json / ConvertTo-Json
+- No external dependencies
 
-### Node.js (npm package)
+### Node.js
 - Compatibility: Node.js 14+
-- Use `child_process.spawn` for Claude CLI execution
-- Handle SIGINT/SIGTERM for graceful shutdown
-- Cross-platform path handling with `path` module
+- `child_process.spawn` for Claude CLI
+- Handle SIGINT/SIGTERM
+- `path` module for cross-platform paths
 
-### Version Synchronization
-When changing version, update ALL three locations:
-1. `VERSION` file
-2. `installers/install.sh` (CCS_VERSION variable)
-3. `installers/install.ps1` ($CcsVersion variable)
+### Versioning
+Update all three atomically via `./scripts/bump-version.sh`:
+1. `VERSION`
+2. `installers/install.sh` (CCS_VERSION)
+3. `installers/install.ps1` ($CcsVersion)
 
-Use `./scripts/bump-version.sh` to update all locations atomically.
+## Implementation Details
 
-## Critical Implementation Details
-
-### Profile Detection Logic
-The `ccs` wrapper uses smart detection:
-- No args OR first arg starts with `-` → use default profile
-- First arg doesn't start with `-` → treat as profile name
-- Special flags handled BEFORE profile detection: `--version`, `-v`, `--help`, `-h`
-- `ccs auth create <profile>` → create new account-based profile
+### Profile Detection
+- No args OR first arg starts with `-` → default profile
+- First arg no `-` → profile name
+- Special flags first: `--version`, `-v`, `--help`, `-h`
+- `ccs auth create <profile>` → create account-based profile
 
 ### Installation Modes
-- **Git mode**: Running from cloned repository (symlinks executables)
-- **Standalone mode**: Running via curl/irm (downloads from GitHub)
+- **Git**: Cloned repo (symlinks executables)
+- **Standalone**: curl/irm (downloads from GitHub)
+- Detection: Check if `ccs` exists in script dir/parent
 
-Detection: Check if `ccs` executable exists in script directory or parent.
+### Idempotency
+Install scripts safe to run multiple times:
+- Check existing files before create
+- Single backup: `config.json.backup` (no timestamps)
+- Skip existing `.claude/` install
+- Handle clean + existing installs
 
-### Idempotency Requirements
-Install scripts must be safe to run multiple times:
-- Check existing files before creating
-- Use single backup file (no timestamps): `config.json.backup`
-- Skip existing `.claude/` folder installation
-- Handle both clean and existing installations
-
-### Settings File Format
+### Settings Format
 ```json
 {
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "your_api_key",
+    "ANTHROPIC_AUTH_TOKEN": "key",
     "ANTHROPIC_MODEL": "glm-4.6",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.6",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.6",
@@ -259,90 +252,76 @@ Install scripts must be safe to run multiple times:
   }
 }
 ```
+All values = strings (not booleans/objects) to prevent PowerShell crashes.
 
-All values must be strings (not booleans/objects) to prevent PowerShell crashes.
+### Profile Files
 
-### v3.0 Profile Files
-
-**profiles.json** (account-based profiles):
+**profiles.json** (account-based):
 ```json
-{
-  "profiles": {
-    "work": "~/.ccs/instances/work",
-    "personal": "~/.ccs/instances/personal",
-    "team": "~/.ccs/instances/team"
-  }
-}
+{"profiles": {"work": "~/.ccs/instances/work"}}
 ```
 
-**config.json** (settings-based profiles):
+**config.json** (settings-based):
 ```json
-{
-  "profiles": {
-    "glm": "~/.ccs/glm.settings.json",
-    "kimi": "~/.ccs/kimi.settings.json",
-    "default": "~/.claude/settings.json"
-  }
-}
+{"profiles": {"glm": "~/.ccs/glm.settings.json"}}
 ```
 
 ## Common Tasks
 
-### Adding a New Feature
-1. Verify it aligns with YAGNI/KISS/DRY principles
-2. Implement for both bash/PowerShell and Node.js if applicable
-3. **Update `--help` output in ALL three implementations** (bin/ccs.js, lib/ccs, lib/ccs.ps1) - REQUIRED
-4. Test on all platforms (macOS, Linux, Windows)
-5. Update tests in `tests/edge-cases.sh` and `tests/edge-cases.ps1`
-6. Update CONTRIBUTING.md if it affects contributors
-7. Update README.md examples if user-facing
+### New Feature
+1. Verify YAGNI/KISS/DRY alignment
+2. Implement for bash/PowerShell/Node.js
+3. **Update `--help` in ALL three** (bin/ccs.js, lib/ccs, lib/ccs.ps1) - REQUIRED
+4. Test on macOS/Linux/Windows
+5. Update tests/edge-cases.*
+6. Update CONTRIBUTING.md if needed
+7. Update README.md if user-facing
 
-### Fixing Bugs
-1. Add test case reproducing the bug
-2. Fix in both bash/PowerShell and Node.js versions
-3. Verify fix doesn't break existing tests
-4. Test on all supported platforms
+### Bug Fix
+1. Add test case reproducing bug
+2. Fix in bash/PowerShell/Node.js
+3. Verify no regression
+4. Test all platforms
 
-### Releasing New Version
-1. Run `./scripts/bump-version.sh [major|minor|patch]`
-2. Review changes to VERSION, install.sh, install.ps1
-3. Test installation from both git and standalone modes
-4. Run full edge case test suite
-5. Commit and tag: `git tag v<VERSION>`
-6. Push to trigger GitHub Actions: `git push origin main && git push origin v<VERSION>`
+### Release
+1. `./scripts/bump-version.sh [major|minor|patch]`
+2. Review VERSION, install scripts
+3. Test git + standalone modes
+4. Run full test suite
+5. `git tag v<VERSION> && git push origin main && git push origin v<VERSION>`
 
-## Testing Requirements
+## Testing Checklist
 
-Before any PR, verify:
-- [ ] Works on macOS (bash)
-- [ ] Works on Linux (bash)
-- [ ] Works on Windows (PowerShell)
-- [ ] Works on Windows (Git Bash)
-- [ ] Handles all edge cases in test suite
-- [ ] Installation is idempotent
-- [ ] No emojis in terminal output (ASCII symbols only)
-- [ ] Version displayed correctly with install location
-- [ ] Colors work on TTY, disabled when piped
-- [ ] NO_COLOR environment variable respected
-- [ ] Auto PATH config works for bash, zsh, fish
-- [ ] Shell reload instructions shown correctly
-- [ ] PATH not duplicated on multiple installs
-- [ ] Manual PATH setup instructions clear if auto fails
-- [ ] v3.0 concurrent sessions work correctly
-- [ ] Instance isolation works (no cross-profile contamination)
-- [ ] **`--help` output updated in bin/ccs.js, lib/ccs, and lib/ccs.ps1** (if feature added/changed)
-- [ ] **`--help` output consistent across all three implementations**
+Before PR:
+- [ ] macOS (bash)
+- [ ] Linux (bash)
+- [ ] Windows (PowerShell)
+- [ ] Windows (Git Bash)
+- [ ] Edge cases pass
+- [ ] Idempotent install
+- [ ] ASCII only (no emojis)
+- [ ] Version + install location correct
+- [ ] TTY colors, disabled when piped
+- [ ] NO_COLOR respected
+- [ ] Auto PATH (bash/zsh/fish)
+- [ ] Shell reload instructions shown
+- [ ] No PATH duplication
+- [ ] Manual PATH instructions clear
+- [ ] Concurrent sessions work
+- [ ] Instance isolation (no contamination)
+- [ ] `--help` updated in bin/ccs.js, lib/ccs, lib/ccs.ps1 (if feature changed)
+- [ ] `--help` consistent across all three
 
-## Integration with Claude Code
+## Claude Code Integration
 
-The `.claude/` folder contains:
-- `/ccs` command: Meta-command for delegating tasks to different models
-- `ccs-delegation` skill: Intelligent task delegation patterns
+`.claude/` contains:
+- `/ccs` command: Task delegation to different models
+- `ccs-delegation` skill: Delegation patterns
 
-## Error Handling Philosophy
+## Error Handling
 
-- Validate early, fail fast with clear error messages
-- Show available options when user makes mistake
-- Suggest recovery steps (e.g., restore from backup)
-- Never leave system in broken state
-- For v3.0 profiles: Guide users through `ccs auth create` if profile missing
+- Validate early, fail fast with clear messages
+- Show available options on mistakes
+- Suggest recovery steps
+- Never leave broken state
+- Guide to `ccs auth create` if profile missing

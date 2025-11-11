@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const SharedManager = require('./shared-manager');
 
 /**
  * Instance Manager (Simplified)
@@ -14,6 +15,7 @@ const os = require('os');
 class InstanceManager {
   constructor() {
     this.instancesDir = path.join(os.homedir(), '.ccs', 'instances');
+    this.sharedManager = new SharedManager();
   }
 
   /**
@@ -56,7 +58,7 @@ class InstanceManager {
       // Create base directory
       fs.mkdirSync(instancePath, { recursive: true, mode: 0o700 });
 
-      // Create Claude-expected subdirectories
+      // Create Claude-expected subdirectories (profile-specific only)
       const subdirs = [
         'session-env',
         'todos',
@@ -64,9 +66,7 @@ class InstanceManager {
         'file-history',
         'shell-snapshots',
         'debug',
-        '.anthropic',
-        'commands',
-        'skills'
+        '.anthropic'
       ];
 
       subdirs.forEach(dir => {
@@ -76,7 +76,10 @@ class InstanceManager {
         }
       });
 
-      // Copy global configs if exist
+      // Symlink shared directories (Phase 1: commands, skills)
+      this.sharedManager.linkSharedDirectories(instancePath);
+
+      // Copy global configs if exist (settings.json only)
       this._copyGlobalConfigs(instancePath);
     } catch (error) {
       throw new Error(`Failed to initialize instance for ${profileName}: ${error.message}`);
@@ -158,25 +161,11 @@ class InstanceManager {
   _copyGlobalConfigs(instancePath) {
     const globalConfigDir = path.join(os.homedir(), '.claude');
 
-    // Copy settings.json if exists
+    // Copy settings.json only (commands/skills are now symlinked to shared/)
     const globalSettings = path.join(globalConfigDir, 'settings.json');
     if (fs.existsSync(globalSettings)) {
       const instanceSettings = path.join(instancePath, 'settings.json');
       fs.copyFileSync(globalSettings, instanceSettings);
-    }
-
-    // Copy commands directory if exists
-    const globalCommands = path.join(globalConfigDir, 'commands');
-    if (fs.existsSync(globalCommands)) {
-      const instanceCommands = path.join(instancePath, 'commands');
-      this._copyDirectory(globalCommands, instanceCommands);
-    }
-
-    // Copy skills directory if exists
-    const globalSkills = path.join(globalConfigDir, 'skills');
-    if (fs.existsSync(globalSkills)) {
-      const instanceSkills = path.join(instancePath, 'skills');
-      this._copyDirectory(globalSkills, instanceSkills);
     }
   }
 

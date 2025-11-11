@@ -133,8 +133,18 @@ function handleHelpCommand() {
   // Configuration
   console.log(colored('Configuration:', 'cyan'));
   console.log('  Config File: ~/.ccs/config.json');
+  console.log('  Profiles:    ~/.ccs/profiles.json');
+  console.log('  Instances:   ~/.ccs/instances/');
   console.log('  Settings:    ~/.ccs/*.settings.json');
   console.log('  Environment: CCS_CONFIG (override config path)');
+  console.log('');
+
+  // Shared Data
+  console.log(colored('Shared Data:', 'cyan'));
+  console.log('  Commands:    ~/.ccs/shared/commands/');
+  console.log('  Skills:      ~/.ccs/shared/skills/');
+  console.log('  Agents:      ~/.ccs/shared/agents/');
+  console.log('  Note: Commands, skills, and agents are symlinked across all profiles');
   console.log('');
 
   // Uninstall
@@ -251,6 +261,11 @@ async function main() {
   if (recovered) {
     recovery.showRecoveryHints();
   }
+
+  // Run migration to shared structure (Phase 1: idempotent)
+  const SharedManager = require('./shared-manager');
+  const sharedManager = new SharedManager();
+  sharedManager.migrateToSharedStructure();
 
   // Detect profile
   const { profile, remainingArgs } = detectProfile(args);
