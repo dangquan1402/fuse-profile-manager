@@ -197,6 +197,16 @@ Commands and skills symlinked from `~/.ccs/shared/` - no duplication across prof
 
 ## GLM with Thinking (GLMT)
 
+> **[!] WARNING: NOT PRODUCTION READY**
+>
+> **GLMT is experimental and requires extensive debugging**:
+> - Streaming and tool support still under active development
+> - May experience unexpected errors, timeouts, or incomplete responses
+> - Requires frequent debugging and manual intervention
+> - **Not recommended for critical workflows or production use**
+>
+> **Alternative for GLM Thinking**: Consider going through the **CCR hustle** with the **Transformer of Bedolla** (ZaiTransformer) for a more stable implementation.
+>
 > **[!] Important**: GLMT requires npm installation (`npm install -g @kaitranntt/ccs`). Not available in native shell versions (requires Node.js HTTP server).
 
 ### Acknowledgments: The Foundation That Made GLMT Possible
@@ -222,44 +232,44 @@ Commands and skills symlinked from `~/.ccs/shared/` - no duplication across prof
 | Feature | GLM (`ccs glm`) | GLMT (`ccs glmt`) |
 |---------|-----------------|-------------------|
 | **Endpoint** | Anthropic-compatible | OpenAI-compatible |
-| **Thinking** | No | Yes (reasoning_content) |
-| **Tool Support** | Basic | **Full (v3.5+)** |
-| **MCP Tools** | Limited | **Working (v3.5+)** |
-| **Streaming** | Yes | **Yes (v3.4+)** |
-| **TTFB** | <500ms | <500ms (streaming), 2-10s (buffered) |
-| **Use Case** | Fast responses | Complex reasoning + tools |
+| **Thinking** | No | Experimental (reasoning_content) |
+| **Tool Support** | Basic | **Unstable (v3.5+)** |
+| **MCP Tools** | Limited | **Buggy (v3.5+)** |
+| **Streaming** | Stable | **Experimental (v3.4+)** |
+| **TTFB** | <500ms | <500ms (sometimes), 2-10s+ (often) |
+| **Use Case** | Reliable work | **Debugging experiments only** |
 
 ### Tool Support (v3.5)
 
-**GLMT now fully supports MCP tools and function calling**:
+**GLMT attempts MCP tools and function calling (EXPERIMENTAL)**:
 
-- **Bidirectional Transformation**: Anthropic tools ↔ OpenAI function calling
-- **MCP Integration**: MCP tools execute correctly (no XML tag output)
-- **Streaming Tool Calls**: Real-time tool calls with input_json deltas
-- **Backward Compatible**: Works seamlessly with existing thinking support
-- **No Configuration**: Tool support works automatically
+- **Bidirectional Transformation**: Anthropic tools ↔ OpenAI format (unstable)
+- **MCP Integration**: MCP tools sometimes execute (often output XML garbage)
+- **Streaming Tool Calls**: Real-time tool calls (when not crashing)
+- **Backward Compatible**: May break existing thinking support
+- **Configuration Required**: Frequent manual debugging needed
 
 ### Streaming Support (v3.4)
 
-**GLMT now supports real-time streaming** with incremental reasoning content delivery.
+**GLMT attempts real-time streaming** with incremental reasoning content delivery (OFTEN FAILS).
 
-- **Default**: Streaming enabled (TTFB <500ms)
-- **Auto-fallback**: Switches to buffered mode if streaming encounters errors
-- **Thinking parameter**: Claude CLI `thinking` parameter support
-  - Respects `thinking.type` and `budget_tokens`
-  - Precedence: CLI parameter > message tags > default
+- **Default**: Streaming enabled (TTFB <500ms when it works)
+- **Auto-fallback**: Frequently switches to buffered mode due to errors
+- **Thinking parameter**: Claude CLI `thinking` parameter sometimes works
+  - May ignore `thinking.type` and `budget_tokens`
+  - Precedence: CLI parameter > message tags > default (when not broken)
 
-**Confirmed working**: Z.AI (1498 reasoning chunks tested, tool calls verified)
+**Barely working**: Z.AI (tested, tool calls frequently break, requires constant debugging)
 
-### How It Works
+### How It Works (When It Works)
 
-1. CCS spawns embedded HTTP proxy on localhost
-2. Proxy converts Anthropic format → OpenAI format (streaming or buffered)
-3. Transforms Anthropic tools → OpenAI function calling format
-4. Forwards to Z.AI with reasoning parameters and tools
-5. Converts `reasoning_content` → thinking blocks (incremental or complete)
-6. Converts OpenAI `tool_calls` → Anthropic tool_use blocks
-7. Thinking and tool calls appear in Claude Code UI in real-time
+1. CCS spawns embedded HTTP proxy on localhost (if not crashing)
+2. Proxy attempts to convert Anthropic format → OpenAI format (often fails)
+3. Tries to transform Anthropic tools → OpenAI function calling format (buggy)
+4. Forwards to Z.AI with reasoning parameters and tools (when not timing out)
+5. Attempts to convert `reasoning_content` → thinking blocks (partial or broken)
+6. Attempts to convert OpenAI `tool_calls` → Anthropic tool_use blocks (XML garbage common)
+7. Thinking and tool calls sometimes appear in Claude Code UI (when not broken)
 
 ### Control Tags & Keywords
 
@@ -267,18 +277,18 @@ Commands and skills symlinked from `~/.ccs/shared/` - no duplication across prof
 - `<Thinking:On|Off>` - Enable/disable reasoning blocks (default: On)
 - `<Effort:Low|Medium|High>` - Control reasoning depth (deprecated - Z.AI only supports binary thinking)
 
-**Thinking Keywords** (automatic activation):
-- `think` - Enable reasoning (low effort)
-- `think hard` - Enable reasoning (medium effort)
-- `think harder` - Enable reasoning (high effort)
-- `ultrathink` - Maximum reasoning depth (max effort)
+**Thinking Keywords** (inconsistent activation):
+- `think` - Sometimes enables reasoning (low effort)
+- `think hard` - Sometimes enables reasoning (medium effort)
+- `think harder` - Sometimes enables reasoning (high effort)
+- `ultrathink` - Attempts maximum reasoning depth (often breaks)
 
 ### Environment Variables
 
-**GLMT features**:
-- Automatic English output enforcement
-- Intelligent thinking mode activation based on task complexity
-- Real-time streaming with automatic fallback to buffered mode
+**GLMT features** (all experimental):
+- Forced English output enforcement (sometimes works)
+- Random thinking mode activation (unpredictable)
+- Attempted streaming with frequent fallback to buffered mode
 
 **General**:
 - `CCS_DEBUG_LOG=1` - Enable debug file logging
