@@ -4,11 +4,10 @@
 /**
  * LocaleEnforcer Unit Tests
  *
- * Tests 4 scenarios:
+ * Tests 3 scenarios:
  * 1. English prompt → English output (verify instruction injected)
  * 2. Chinese prompt → English output (verify instruction injected)
  * 3. Mixed prompt → English output (verify instruction injected)
- * 4. Opt-out test: CCS_GLMT_FORCE_ENGLISH=false (allow multilingual)
  */
 
 const assert = require('assert');
@@ -133,40 +132,6 @@ describe('LocaleEnforcer', () => {
       assert.ok(Array.isArray(result[0].content));
       assert.strictEqual(result[0].content.length, 3); // Instruction + 2 original blocks
       assert.ok(result[0].content[0].text.includes('CRITICAL: You MUST respond in English only'));
-    });
-  });
-
-  describe('Scenario 4: Opt-out (CCS_GLMT_FORCE_ENGLISH=false)', () => {
-    it('should not inject instruction when forceEnglish is disabled', () => {
-      const enforcer = new LocaleEnforcer({ forceEnglish: false });
-      const messages = [
-        { role: 'system', content: '你是一个编程助手' },
-        { role: 'user', content: '实现用户认证' }
-      ];
-
-      const result = enforcer.injectInstruction(messages);
-
-      assert.strictEqual(result.length, 2);
-      assert.strictEqual(result[0].content, '你是一个编程助手');
-      assert.strictEqual(result[1].content, '实现用户认证');
-      assert.ok(!result[0].content.includes('CRITICAL: You MUST respond in English only'));
-    });
-
-    it('should pass through messages unchanged when disabled', () => {
-      const enforcer = new LocaleEnforcer({ forceEnglish: false });
-      const originalMessages = [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: 'Debug the code' },
-            { type: 'text', text: '修复这个错误' }
-          ]
-        }
-      ];
-
-      const result = enforcer.injectInstruction(originalMessages);
-
-      assert.deepStrictEqual(result, originalMessages);
     });
   });
 

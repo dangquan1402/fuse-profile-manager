@@ -244,8 +244,7 @@ Commands and skills symlinked from `~/.ccs/shared/` - no duplication across prof
 **GLMT now supports real-time streaming** with incremental reasoning content delivery.
 
 - **Default**: Streaming enabled (TTFB <500ms)
-- **Disable**: Set `CCS_GLMT_STREAMING=disabled` for buffered mode
-- **Force**: Set `CCS_GLMT_STREAMING=force` to override client preferences
+- **Auto-fallback**: Switches to buffered mode if streaming encounters errors
 - **Thinking parameter**: Claude CLI `thinking` parameter support
   - Respects `thinking.type` and `budget_tokens`
   - Precedence: CLI parameter > message tags > default
@@ -262,22 +261,24 @@ Commands and skills symlinked from `~/.ccs/shared/` - no duplication across prof
 6. Converts OpenAI `tool_calls` → Anthropic tool_use blocks
 7. Thinking and tool calls appear in Claude Code UI in real-time
 
-### Control Tags
+### Control Tags & Keywords
 
+**Control Tags**:
 - `<Thinking:On|Off>` - Enable/disable reasoning blocks (default: On)
 - `<Effort:Low|Medium|High>` - Control reasoning depth (deprecated - Z.AI only supports binary thinking)
 
+**Thinking Keywords** (automatic activation):
+- `think` - Enable reasoning (low effort)
+- `think hard` - Enable reasoning (medium effort)
+- `think harder` - Enable reasoning (high effort)
+- `ultrathink` - Maximum reasoning depth (max effort)
+
 ### Environment Variables
 
-**GLMT-specific**:
-- `CCS_GLMT_FORCE_ENGLISH=true` - Force English output (default: true)
-- `CCS_GLMT_THINKING_BUDGET=8192` - Control thinking on/off based on task type
-  - 0 or "unlimited": Always enable thinking
-  - 1-2048: Disable thinking (fast execution)
-  - 2049-8192: Enable for reasoning tasks only (default)
-  - >8192: Always enable thinking
-- `CCS_GLMT_STREAMING=disabled` - Force buffered mode
-- `CCS_GLMT_STREAMING=force` - Force streaming (override client)
+**GLMT features**:
+- Automatic English output enforcement
+- Intelligent thinking mode activation based on task complexity
+- Real-time streaming with automatic fallback to buffered mode
 
 **General**:
 - `CCS_DEBUG_LOG=1` - Enable debug file logging
@@ -319,10 +320,10 @@ ccs glmt --verbose "your prompt"
 # Logs: ~/.ccs/logs/
 ```
 
-**Check streaming mode**:
+**GLMT debugging**:
 ```bash
-# Disable streaming for debugging
-CCS_GLMT_STREAMING=disabled ccs glmt "test"
+# Verbose logging shows streaming status and reasoning details
+ccs glmt --verbose "test"
 ```
 
 **Check reasoning content**:

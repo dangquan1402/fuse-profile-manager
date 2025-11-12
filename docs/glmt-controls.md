@@ -12,123 +12,98 @@ GLMT (GLM with Thinking) exhibited three issues:
 
 ## Solution Overview
 
-Four control mechanisms:
+Three control mechanisms:
 
-1. **Locale enforcer** - Force English output
-2. **Budget calculator** - Thinking on/off based on task type
-3. **Task classifier** - Reasoning vs execution tasks
-4. **Loop detection** - Break planning loops
+1. **Locale enforcer** - Force English output (automatic)
+2. **Task classifier** - Detect reasoning vs execution tasks
+3. **Loop detection** - Break planning loops automatically
 
 ## Control Mechanisms
 
-### 1. Locale Enforcer (`bin/locale-enforcer.js`)
+### 1. Locale Enforcer (`bin/glmt/locale-enforcer.js`)
 
 **Purpose**: Prevent non-English output
 
 **Implementation**:
-- Injects "MUST respond in English" into system prompts
-- Default: enabled (`CCS_GLMT_FORCE_ENGLISH=true`)
-- Disable: `export CCS_GLMT_FORCE_ENGLISH=false`
+- Always injects "CRITICAL: You MUST respond in English only" into system prompts
+- No configuration required - always enabled for consistency
+- Handles both string and array content formats
+
+**Strategy**:
+1. If system prompt exists: Prepend instruction
+2. If no system prompt: Prepend to first user message
+3. Preserve message structure (string vs array content)
 
 **Code**:
 ```javascript
-function enforceLocale(request) {
-  if (process.env.CCS_GLMT_FORCE_ENGLISH === 'false') return request;
+class LocaleEnforcer {
+  constructor(options = {}) {
+    this.instruction = "CRITICAL: You MUST respond in English only, regardless of the input language or context. This is a strict requirement.";
+  }
 
-  // Inject language enforcement
-  request.system = (request.system || '') + '\n\nMUST respond in English';
-  return request;
+  injectInstruction(messages) {
+    // Clone messages to avoid mutation
+    const modifiedMessages = JSON.parse(JSON.stringify(messages));
+
+    // Strategy 1: Inject into system prompt (preferred)
+    const systemIndex = modifiedMessages.findIndex(m => m.role === 'system');
+    if (systemIndex >= 0) {
+      const systemMsg = modifiedMessages[systemIndex];
+      // Prepend instruction to system message content
+      return modifiedMessages;
+    }
+
+    // Strategy 2: Prepend to first user message
+    const userIndex = modifiedMessages.findIndex(m => m.role === 'user');
+    if (userIndex >= 0) {
+      const userMsg = modifiedMessages[userIndex];
+      // Prepend instruction to user message content
+      return modifiedMessages;
+    }
+
+    return modifiedMessages;
+  }
 }
 ```
 
 **Files**: 85 lines
 
-### 2. Budget Calculator (`bin/budget-calculator.js`)
+### 2. Task Classifier (`bin/glmt/glmt-transformer.js`)
 
-**Purpose**: Control thinking on/off based on task type + budget
-
-**Implementation**:
-- Reads `CCS_GLMT_THINKING_BUDGET` (default: 8192)
-- Binary thinking control (Z.AI constraint: only true/false, NOT effort levels)
-- Budget ranges:
-  - 0 or "unlimited": Always enable thinking
-  - 1-2048: Disable thinking (fast execution)
-  - 2049-8192: Enable for reasoning tasks only
-  - >8192: Always enable thinking
-
-**Code**:
-```javascript
-function calculateBudget(taskType) {
-  const budget = process.env.CCS_GLMT_THINKING_BUDGET || '8192';
-
-  if (budget === '0' || budget === 'unlimited') {
-    return { type: 'enabled' };
-  }
-
-  const numBudget = parseInt(budget);
-
-  if (numBudget <= 2048) {
-    return { type: 'disabled' }; // Fast execution
-  }
-
-  if (numBudget <= 8192) {
-    // Enable only for reasoning tasks
-    return taskType === 'reasoning'
-      ? { type: 'enabled' }
-      : { type: 'disabled' };
-  }
-
-  return { type: 'enabled' }; // Always enable
-}
-```
-
-**Files**: 109 lines
-
-**API Constraint**: Z.AI only supports binary thinking (true/false), NOT effort levels (low/medium/high)
-
-### 3. Task Classifier (`bin/task-classifier.js`)
-
-**Purpose**: Classify tasks as reasoning vs execution
+**Purpose**: Classify tasks as reasoning vs execution for intelligent thinking activation
 
 **Implementation**:
-- Keyword-based classification
-- Reasoning keywords: solve, analyze, design, plan, debug, optimize, review, explain
-- Execution keywords: list, show, create, update, delete, run, execute
+- Keyword-based classification in natural language prompts
+- Automatic detection without user configuration
+- Supports reasoning keywords and execution keywords
 
-**Code**:
-```javascript
-function classifyTask(prompt) {
-  const reasoningKeywords = ['solve', 'analyze', 'design', 'plan', 'debug', 'optimize', 'review', 'explain'];
-  const executionKeywords = ['list', 'show', 'create', 'update', 'delete', 'run', 'execute'];
+**Reasoning Keywords**:
+- `think`, `analyze`, `design`, `plan`, `debug`, `optimize`, `review`, `explain`
+- `think hard`, `think harder`, `ultrathink` (increasing intensity levels)
 
-  const lowerPrompt = prompt.toLowerCase();
+**Execution Keywords**:
+- `list`, `show`, `create`, `update`, `delete`, `run`, `execute`, `fix`, `implement`
 
-  const hasReasoning = reasoningKeywords.some(kw => lowerPrompt.includes(kw));
-  const hasExecution = executionKeywords.some(kw => lowerPrompt.includes(kw));
-
-  if (hasReasoning && !hasExecution) return 'reasoning';
-  if (hasExecution && !hasReasoning) return 'execution';
-
-  return 'mixed'; // Default to reasoning for mixed tasks
-}
-```
-
-**Files**: 146 lines
+**Priority System**:
+- `ultrathink` > `think harder` > `think hard` > `think` > default
+- Higher priority keywords override lower ones
+- Mixed tasks default to enabled thinking
 
 **Examples**:
-- "solve algorithm problem" → reasoning → thinking enabled (budget ≤8192)
-- "list files in directory" → execution → thinking disabled (budget ≤8192)
-- "debug authentication issue" → reasoning → thinking enabled
-- "create REST API endpoint" → execution → thinking disabled
+- `"think about the architecture"` → reasoning → thinking enabled
+- `"list files in directory"` → execution → thinking disabled
+- `"debug authentication issue"` → reasoning → thinking enabled
+- `"fix the bug"` → execution → thinking disabled
+- `"ultrathink this complex problem"` → maximum reasoning → thinking enabled
 
-### 4. Loop Detection (`bin/delta-accumulator.js`)
+### 3. Loop Detection (`bin/glmt/delta-accumulator.js`)
 
 **Purpose**: Break unbounded planning loops
 
 **Implementation**:
 - Tracks consecutive thinking blocks without tool calls
-- Triggers after 3 consecutive thinking blocks
-- Injects system message to force action
+- Triggers after 3 consecutive thinking blocks (configurable)
+- Injects system message to force execution mode
 
 **Code**:
 ```javascript
@@ -147,223 +122,207 @@ class DeltaAccumulator {
       }
     }
 
-    if (event.type === 'tool_use') {
-      // Reset counter on tool calls
+    if (event.type === 'tool_call' || event.type === 'tool_result') {
+      // Reset counter on tool activity
       this.consecutiveThinkingBlocks = 0;
     }
-  }
-
-  injectLoopBreaker() {
-    return {
-      type: 'message',
-      role: 'system',
-      content: 'Planning loop detected. Execute action now.'
-    };
   }
 }
 ```
 
-**Files**: 156 lines (enhanced)
+**Loop Breaker Message**:
+```
+STOP thinking and start executing. You've been planning too long without taking action.
+Please provide concrete solutions or use available tools to complete the task.
+```
 
-**Trigger condition**: 3 consecutive thinking blocks with no tool calls
+**Files**: 146 lines
 
-## Integration
+## Control Tags & Keywords
 
-All controls integrated into `bin/glmt-transformer.js`:
+### Control Tags (Manual Control)
+- `<Thinking:On|Off>` - Enable/disable reasoning blocks (default: On)
+- `<Effort:Low|Medium|High>` - Deprecated - Z.AI only supports binary thinking
+
+### Thinking Keywords (Automatic Activation)
+- `think` - Enable reasoning (low effort)
+- `think hard` - Enable reasoning (medium effort)
+- `think harder` - Enable reasoning (high effort)
+- `ultrathink` - Maximum reasoning depth (max effort)
+
+**Usage Examples**:
+```bash
+ccs glmt "think about the microservices architecture"
+ccs glmt "ultrathink this complex algorithm optimization"
+ccs glmt "implement the user authentication feature"
+ccs glmt "debug the memory leak issue"
+```
+
+## Integration Flow
 
 ```javascript
-// 1. Locale enforcement
-const localeEnforcer = require('./locale-enforcer');
-request = localeEnforcer.enforce(request);
+// 1. Locale enforcement (always applied)
+const localeEnforcer = new LocaleEnforcer();
+const messagesWithLocale = localeEnforcer.injectInstruction(request.messages);
 
-// 2. Task classification + budget control
-const taskClassifier = require('./task-classifier');
-const budgetCalculator = require('./budget-calculator');
+// 2. Task classification (automatic)
+const taskClassifier = new TaskClassifier(); // Built into transformer
+const thinkingConfig = taskClassifier.classifyTask(prompt);
 
-const taskType = taskClassifier.classify(request.messages[0].content);
-const thinkingConfig = budgetCalculator.calculate(taskType);
-
+// 3. Apply thinking configuration
 request.thinking = thinkingConfig;
 
-// 3. Loop detection (during streaming)
+// 4. Loop detection (during streaming)
 const deltaAccumulator = new DeltaAccumulator();
 deltaAccumulator.trackThinkingLoop(event);
 ```
 
 ## Environment Variables
 
-### CCS_GLMT_FORCE_ENGLISH
+### General Environment Variables
 
-**Default**: `true`
+**CCS_DEBUG=1**
+- Enable debug logging (file logging to ~/.ccs/logs/ + enhanced console diagnostics)
+- Shows reasoning deltas, block creation, and loop detection activity
 
-**Values**:
-- `true` - Force English output (inject language enforcement)
-- `false` - Allow model default language
-
-**Usage**:
-```bash
-# Enable (default)
-export CCS_GLMT_FORCE_ENGLISH=true
-
-# Disable
-export CCS_GLMT_FORCE_ENGLISH=false
-```
-
-### CCS_GLMT_THINKING_BUDGET
-
-**Default**: `8192`
-
-**Values**:
-- `0` or `unlimited` - Always enable thinking
-- `1-2048` - Disable thinking (fast execution)
-- `2049-8192` - Enable for reasoning tasks only (default)
-- `>8192` - Always enable thinking
-
-**Usage**:
-```bash
-# Default (reasoning tasks only)
-export CCS_GLMT_THINKING_BUDGET=8192
-
-# Always enable thinking
-export CCS_GLMT_THINKING_BUDGET=0
-export CCS_GLMT_THINKING_BUDGET=unlimited
-
-# Disable thinking (fast execution)
-export CCS_GLMT_THINKING_BUDGET=1024
-
-# Always enable thinking (high budget)
-export CCS_GLMT_THINKING_BUDGET=16384
-```
+**CCS_CLAUDE_PATH=/path/to/claude**
+- Custom Claude CLI path for non-standard installations
 
 ## Testing
 
-**Test coverage**: 110 tests passing
+GLMT includes comprehensive test coverage:
 
-**Test files**:
-- `tests/glmt-transformer.test.js` - All control mechanisms covered
-
-**Run tests**:
 ```bash
-npm test
+# Locale enforcer tests
+npm test -- tests/unit/glmt/locale-enforcer.test.js
+
+# GLMT transformer tests
+npm test -- tests/unit/glmt/glmt-transformer.test.js
+
+# Integration tests
+npm test -- tests/integration/glmt/
 ```
+
+**Test Coverage**: 35+ tests covering:
+- Locale enforcement (3 scenarios)
+- Task classification and thinking activation
+- Loop detection and breaker injection
+- Streaming transformation and delta accumulation
+- Tool calling support and bidirectional transformation
 
 ## Troubleshooting
 
-### Chinese Output Despite CCS_GLMT_FORCE_ENGLISH=true
+### Chinese Output Despite Locale Enforcement
 
-1. Check environment variable:
+**Expected**: Should never happen with current implementation
+
+**If it occurs**:
+1. Check for malformed messages in debug logs
+2. Verify locale enforcer is being called in proxy flow
+3. Check system message content in transformation logs
+
+**Debug**:
 ```bash
-echo $CCS_GLMT_FORCE_ENGLISH  # Should be "true"
+export CCS_DEBUG=1
+ccs glmt "test prompt"
+# Check logs: ~/.ccs/logs/*request-openai.json
 ```
 
-2. Verify locale enforcer enabled:
+### Excessive Planning Loops
+
+**Symptoms**: Multiple consecutive thinking blocks without tool calls
+
+**Expected behavior**: Loop detector should trigger after 3 blocks
+
+**If loops persist**:
+1. Check loop detector logs: `export CCS_DEBUG=1`
+2. Verify consecutive thinking counter reset on tool calls
+3. Check loop breaker message injection
+
+**Manual intervention**:
 ```bash
-CCS_DEBUG_LOG=1 ccs glmt "test"
-cat ~/.ccs/logs/*request-openai.json | jq '.system' | grep "MUST respond in English"
+# Use specific execution keywords to bypass thinking
+ccs glmt "implement the solution now"
+ccs glmt "fix the bug immediately"
+ccs glmt "execute the code"
 ```
 
-3. If absent: locale enforcer not applied - check implementation
+### No Thinking Blocks on Complex Tasks
 
-### Thinking Blocks Not Appearing
+**Symptoms**: Straight to execution without reasoning
 
-1. Check budget setting:
-```bash
-echo $CCS_GLMT_THINKING_BUDGET  # Default: 8192
-```
+**Cause**: Task classifier may not recognize reasoning keywords
 
-2. Check task classification:
-```bash
-# "list files" → execution → thinking disabled (budget=8192)
-# "solve problem" → reasoning → thinking enabled (budget=8192)
-```
-
-3. Override budget:
-```bash
-# Always enable thinking
-export CCS_GLMT_THINKING_BUDGET=0
-ccs glmt "your prompt"
-```
-
-### Unbounded Planning Loops
-
-1. Loop detection triggers after 3 consecutive thinking blocks
-2. Check logs:
-```bash
-CCS_DEBUG_LOG=1 ccs glmt "test"
-cat ~/.ccs/logs/*debug.log | grep "Planning loop detected"
-```
-
-3. If loops persist:
-   - Lower budget: `export CCS_GLMT_THINKING_BUDGET=1024`
-   - Disable thinking: Force execution mode
+**Solutions**:
+1. Use explicit thinking keywords:
+   ```bash
+   ccs glmt "think about this problem"
+   ccs glmt "ultrathink the architecture"
+   ```
+2. Use control tags:
+   ```bash
+   ccs glmt "<Thinking:On> analyze this complex issue"
+   ```
+3. Check if task classification working in debug logs
 
 ### Token Waste on Simple Tasks
 
-1. Check default budget (8192 = reasoning tasks only)
-2. Lower budget for stricter control:
-```bash
-export CCS_GLMT_THINKING_BUDGET=2048
-```
+**Expected behavior**: Task classifier should disable thinking for execution tasks
 
-3. Verify task classification:
-```bash
-# Execution tasks should disable thinking at budget=8192
-ccs glmt "list files"          # Should be fast (no thinking)
-ccs glmt "solve algorithm"     # Should use thinking
-```
+**If thinking still enabled**:
+1. Check for mixed keywords in prompt (both reasoning and execution)
+2. Use explicit execution keywords: `fix`, `implement`, `execute`, `create`
+3. Verify task classification in debug logs
 
-## Performance Impact
+## Architecture Notes
 
-**Token savings**:
-- Execution tasks: ~50-80% token reduction (thinking disabled)
-- Reasoning tasks: No change (thinking enabled as needed)
+### Z.AI API Constraints
 
-**Latency impact**:
-- Execution tasks: ~30-50% faster (no thinking overhead)
-- Reasoning tasks: No change
+- **Binary thinking only**: Z.AI supports `thinking_enabled: true/false`, not effort levels
+- **Reasoning content**: Delivered via `reasoning_content` field in API responses
+- **Tool calling**: Full OpenAI-compatible function calling supported
+- **Streaming**: Real-time delivery of reasoning content and tool calls
 
-**Loop detection**:
-- Breaks infinite loops after 3 blocks
-- Prevents exponential token waste
+### Backward Compatibility
 
-## Implementation Files
+- **Control tags**: `<Thinking:On|Off>` still work alongside keywords
+- **Claude CLI thinking parameter**: Respects `thinking.type` and `budget_tokens`
+- **Precedence**: CLI parameter > message tags > keywords > default
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `bin/locale-enforcer.js` | 85 | Force English output |
-| `bin/budget-calculator.js` | 109 | Thinking on/off control |
-| `bin/task-classifier.js` | 146 | Task classification |
-| `bin/delta-accumulator.js` | 156 | Loop detection (enhanced) |
-| `bin/glmt-transformer.js` | 685 | Integration + transformation |
+### Performance
 
-**Total**: ~1200 lines (control mechanisms + transformation)
+- **TTFB**: <500ms for streaming mode
+- **Auto-fallback**: Switches to buffered mode if streaming errors
+- **Loop prevention**: Eliminates token waste from unbounded planning
+- **Intelligent activation**: Thinking only when beneficial
 
-## API Constraints
+## Security Limits
 
-**Z.AI limitations**:
-- Only supports binary thinking (true/false)
-- Does NOT support effort levels (low/medium/high)
-- `<Effort:Low|Medium|High>` tags deprecated
-- Use `CCS_GLMT_THINKING_BUDGET` for control instead
+**DoS protection** (built into proxy):
+- SSE buffer: 1MB max per event
+- Content buffer: 10MB max per block (thinking/text)
+- Content blocks: 100 max per message
+- Request timeout: 120s (both streaming and buffered)
 
-**Backward compatibility**:
-- Control tags still work (`<Thinking:On|Off>`)
-- Effort tags ignored (mapped to binary thinking)
+**Loop protection**:
+- Maximum 3 consecutive thinking blocks
+- Automatic loop breaker injection
+- Prevents unlimited token consumption
 
-## Future Enhancements
+## Migration Notes
 
-Potential improvements:
+### From Environment Variables (v3.5+)
 
-1. **LLM-based task classification** - More accurate than keywords
-2. **Adaptive budget** - Learn from task history
-3. **Per-task budget overrides** - Fine-grained control
-4. **Loop detection thresholds** - Configurable trigger count
-5. **Multi-language support** - Beyond English enforcement
+The following environment variables have been **removed**:
+- ~~`CCS_GLMT_FORCE_ENGLISH`~~ → Now always enabled
+- ~~`CCS_GLMT_THINKING_BUDGET`~~ → Replaced by intelligent task classification
+- ~~`CCS_GLMT_STREAMING`~~ → Automatic streaming with fallback
 
-Not implemented (YAGNI principle).
+**No action required** - GLMT automatically handles all these cases intelligently.
 
-## Related Documentation
+### New Features (v3.5+)
 
-- [CLAUDE.md](../CLAUDE.md) - Architecture overview
-- [README.md](../README.md) - User guide
-- [system-architecture.md](./system-architecture.md) - System design
+- **Thinking keywords**: Natural language control (`think`, `think hard`, etc.)
+- **Loop detection**: Automatic prevention of planning loops
+- **Enhanced streaming**: Better error handling and auto-fallback
+- **Tool support**: Full MCP tools and function calling compatibility
