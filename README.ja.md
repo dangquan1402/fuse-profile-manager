@@ -75,6 +75,7 @@ irm ccs.kaitran.ca/install | iex
 {
   "profiles": {
     "glm": "~/.ccs/glm.settings.json",
+    "glmt": "~/.ccs/glmt.settings.json",
     "kimi": "~/.ccs/kimi.settings.json",
     "default": "~/.claude/settings.json"
   }
@@ -92,23 +93,37 @@ $env:CCS_CLAUDE_PATH = "D:\Tools\Claude\claude.exe"   # Windows
 
 **詳細な設定手順については、[トラブルシューティングガイド](./docs/en/troubleshooting.md#claude-cli-in-non-standard-location)を参照してください。**
 
+### Windowsシンボリックリンクサポート（開発者モード）
+
+**Windowsユーザー**: 本物のシンボリックリンクで高速な動作と即時同期を得るために開発者モードを有効にしてください：
+
+1. **設定** → **プライバシーとセキュリティ** → **開発者向け** を開く
+2. **開発者モード** を有効にする
+3. CCSを再インストール: `npm install -g @kaitranntt/ccs`
+
+**開発者モードなし**: CCSは自動的にディレクトリコピーにフォールバック（動作しますが、プロファイル間の即時同期はありません）
+
 ---
 
 ### 最初の切り替え
 
-> **⚠️ 重要**: GLMまたはKimiプロファイルを使用する前に、対応する設定ファイルでAPIキーを更新する必要があります：
+> **⚠️ 重要**: GLM、GLMT、Kimiプロファイルを使用する前に、設定ファイルでAPIキーを更新してください：
 > - **GLM**: `~/.ccs/glm.settings.json`を編集してGLM APIキーを追加
+> - **GLMT**: `~/.ccs/glmt.settings.json`を編集してZ.AI APIキーを追加（coding planが必要）
 > - **Kimi**: `~/.ccs/kimi.settings.json`を編集してKimi APIキーを追加
 
 ```bash
-# Claudeサブスクリプションを使用（デフォルト）で高レベルの計画
-ccs "マイクロサービスアーキテクチャの実装計画を立てて"
+# Claudeサブスクリプション（デフォルト）
+ccs "マイクロサービスアーキテクチャの計画"
 
-# GLMに切り替えてコスト最適化されたタスクを実行
-ccs glm "シンプルなREST APIを作成して"
+# GLMに切り替え（コスト最適化）
+ccs glm "REST APIを作成"
 
-# Kimiに切り替えて思考能力を活用
-ccs kimi "適切なエラーハンドリングで統合テストを書いて"
+# GLM with thinkingモード
+ccs glmt "アルゴリズム問題を解決"
+
+# Kimi for Coding
+ccs kimi "統合テストを作成"
 ```
 
 ---
@@ -218,6 +233,73 @@ flowchart TD
 
 ---
 
+## Architecture
+
+### Profile Types
+
+**Settings-based**: GLM, GLMT, Kimi, default
+- Uses `--settings` flag pointing to config files
+- GLMT: Embedded proxy for thinking mode support
+
+**Account-based**: work, personal, team
+- Uses `CLAUDE_CONFIG_DIR` for isolated instances
+- Create with `ccs auth create <profile>`
+
+### Shared Data (v3.1)
+
+Commands and skills symlinked from `~/.ccs/shared/` - no duplication across profiles.
+
+```
+~/.ccs/
+├── shared/                  # Shared across all profiles
+│   ├── agents/
+│   ├── commands/
+│   └── skills/
+├── instances/               # Profile-specific data
+│   └── work/
+│       ├── agents@ → shared/agents/
+│       ├── commands@ → shared/commands/
+│       ├── skills@ → shared/skills/
+│       ├── settings.json    # API keys, credentials
+│       └── sessions/        # Conversation history
+│       └── ...
+```
+
+**Shared**: commands/, skills/, agents/
+**Profile-specific**: settings.json, sessions/, todolists/, logs/
+
+**[i] Windows**: Copies dirs if symlinks unavailable (enable Developer Mode for true symlinks)
+
+---
+
+## GLM with Thinking (GLMT)
+
+> **[!] 警告：本番環境未対応**
+>
+> **GLMTは実験的で広範なデバッグが必要です**：
+> - ストリーミングとツールサポートはまだ開発中
+> - 予期せぬエラー、タイムアウト、不完全な応答が発生する可能性
+> - 頻繁なデバッグと手動介入が必要
+> - **重要なワークフローや本番使用には推奨されません**
+>
+> **GLM Thinkingの代替案**: **CCR hustle**と**BedollaのTransformer**（ZaiTransformer）を通じて、より安定した実装を検討してください。
+>
+> **[!] 重要**: GLMTはnpmインストールが必要です（`npm install -g @kaitranntt/ccs`）。ネイティブシェルバージョンでは利用できません（Node.js HTTPサーバーが必要）。
+
+### GLM vs GLMT
+
+| 機能 | GLM (`ccs glm`) | GLMT (`ccs glmt`) |
+|-----|-----------------|-------------------|
+| **エンドポイント** | Anthropic互換 | OpenAI互換 |
+| **思考** | なし | 実験的（reasoning_content） |
+| **ツールサポート** | 基本的 | **不安定（v3.5+）** |
+| **MCPツール** | 制限あり | **バグあり（v3.5+）** |
+| **ストリーミング** | 安定 | **実験的（v3.4+）** |
+| **TTFB** | <500ms | <500ms（時々）、2-10秒+（頻繁） |
+| **使用例** | 信頼性の高い作業 | **デバッグ実験のみ** |
+
+---
+
 ## ⚡ 機能
 
 - **即座の切り替え** - `ccs glm`でGLMに切り替え、設定編集不要
@@ -232,10 +314,11 @@ flowchart TD
 ## 💻 使用例
 
 ```bash
-ccs              # Claudeサブスクリプションを使用（デフォルト）
-ccs glm          # GLMフォールバックを使用
-ccs kimi         # Kimi for Codingを使用
-ccs --version    # CCSバージョンとインストール場所を表示
+ccs              # Claudeサブスクリプション（デフォルト）
+ccs glm          # GLM（thinkingなし）
+ccs glmt         # GLM with thinking
+ccs kimi         # Kimi for Coding
+ccs --version    # バージョン表示
 ```
 
 ### 同時セッション (Multi-Account)
@@ -299,6 +382,8 @@ irm ccs.kaitran.ca/uninstall | iex
 - [インストールガイド](./docs/en/installation.md)
 - [設定](./docs/en/configuration.md)
 - [使用例](./docs/en/usage.md)
+- [System Architecture](./docs/system-architecture.md)
+- [GLMT Control Mechanisms](./docs/glmt-controls.md)
 - [トラブルシューティング](./docs/en/troubleshooting.md)
 - [コントリビューション](./CONTRIBUTING.md)
 

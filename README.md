@@ -195,6 +195,42 @@ Commands and skills symlinked from `~/.ccs/shared/` - no duplication across prof
 
 ---
 
+## Usage Examples
+
+### Basic Switching
+```bash
+ccs              # Claude subscription (default)
+ccs glm          # GLM (no thinking)
+ccs glmt         # GLM with thinking
+ccs kimi         # Kimi for Coding
+ccs --version    # Show version
+```
+
+### Multi-Account Setup
+```bash
+# Create accounts
+ccs auth create work
+ccs auth create personal
+
+# Terminal 1
+ccs work "implement feature"
+
+# Terminal 2 (concurrent)
+ccs personal "review code"
+```
+
+### Custom Claude CLI Path
+
+Non-standard installation location:
+```bash
+export CCS_CLAUDE_PATH="/path/to/claude"              # Unix
+$env:CCS_CLAUDE_PATH = "D:\Tools\Claude\claude.exe"   # Windows
+```
+
+See [Troubleshooting Guide](./docs/en/troubleshooting.md#claude-cli-in-non-standard-location)
+
+---
+
 ## GLM with Thinking (GLMT)
 
 > **[!] WARNING: NOT PRODUCTION READY**
@@ -343,62 +379,6 @@ cat ~/.ccs/logs/*response-openai.json | jq '.choices[0].message.reasoning_conten
 
 **If absent**: Z.AI API issue (verify key, account status)
 **If present**: Transformation issue (check response-anthropic.json)
-
----
-
-## Usage Examples
-
-### Basic Switching
-```bash
-ccs              # Claude subscription (default)
-ccs glm          # GLM (no thinking)
-ccs glmt         # GLM with thinking
-ccs kimi         # Kimi for Coding
-ccs --version    # Show version
-```
-
-### Multi-Account Setup
-```bash
-# Create accounts
-ccs auth create work
-ccs auth create personal
-
-# Terminal 1
-ccs work "implement feature"
-
-# Terminal 2 (concurrent)
-ccs personal "review code"
-```
-
-### Custom Claude CLI Path
-
-Non-standard installation location:
-```bash
-export CCS_CLAUDE_PATH="/path/to/claude"              # Unix
-$env:CCS_CLAUDE_PATH = "D:\Tools\Claude\claude.exe"   # Windows
-```
-
-See [Troubleshooting Guide](./docs/en/troubleshooting.md#claude-cli-in-non-standard-location)
-
----
-
-## Configuration
-
-Auto-created during installation via npm postinstall script.
-
-**~/.ccs/config.json**:
-```json
-{
-  "profiles": {
-    "glm": "~/.ccs/glm.settings.json",
-    "glmt": "~/.ccs/glmt.settings.json",
-    "kimi": "~/.ccs/kimi.settings.json",
-    "default": "~/.claude/settings.json"
-  }
-}
-```
-
-Complete guide: [docs/en/configuration.md](./docs/en/configuration.md)
 
 ---
 

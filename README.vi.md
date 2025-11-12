@@ -12,6 +12,7 @@ Ngừng hitting rate limits. Làm việc liên tục.
 
 [![License](https://img.shields.io/badge/license-MIT-C15F3C?style=for-the-badge)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=for-the-badge)]()
+[![npm](https://img.shields.io/npm/v/@kaitranntt/ccs?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/@kaitranntt/ccs)
 [![PoweredBy](https://img.shields.io/badge/PoweredBy-ClaudeKit-C15F3C?style=for-the-badge)](https://claudekit.cc?ref=HMNKXOHN)
 
 **Ngôn ngữ**: [English](README.md) | [Tiếng Việt](README.vi.md) | [日本語](README.ja.md)
@@ -74,6 +75,8 @@ irm ccs.kaitran.ca/install | iex
 {
   "profiles": {
     "glm": "~/.ccs/glm.settings.json",
+    "glmt": "~/.ccs/glmt.settings.json",
+    "kimi": "~/.ccs/kimi.settings.json",
     "default": "~/.claude/settings.json"
   }
 }
@@ -90,23 +93,37 @@ $env:CCS_CLAUDE_PATH = "D:\Tools\Claude\claude.exe"   # Windows
 
 **Xem [Hướng dẫn Khắc phục Sự cố](./docs/vi/troubleshooting.vi.md#claude-cli-ở-vị-trí-không-chuẩn) để biết chi tiết cài đặt.**
 
+### Hỗ Trợ Symlink Windows (Chế Độ Nhà Phát Triển)
+
+**Người dùng Windows**: Bật Chế độ Nhà phát triển để có symlink thực sự (hiệu suất tốt hơn, đồng bộ hóa tức thì):
+
+1. Mở **Settings** → **Privacy & Security** → **For developers**
+2. Bật **Developer Mode**
+3. Cài đặt lại CCS: `npm install -g @kaitranntt/ccs`
+
+**Nếu không có Chế độ Nhà phát triển**: CCS tự động chuyển sang sao chép thư mục (hoạt động nhưng không đồng bộ tức thì trên các profile).
+
 ---
 
 ### Lần Chuyển Đổi Đầu Tiên
 
-> **⚠️ Quan trọng**: Trước khi dùng profile GLM hay Kimi, bạn cần cập nhật API key trong file settings tương ứng:
-> - **GLM**: Chỉnh sửa `~/.ccs/glm.settings.json` và thêm GLM API key của bạn
-> - **Kimi**: Chỉnh sửa `~/.ccs/kimi.settings.json` và thêm Kimi API key của bạn
+> **⚠️ Quan trọng**: Trước khi dùng GLM, GLMT hay Kimi profile, cập nhật API key trong file settings:
+> - **GLM**: Chỉnh sửa `~/.ccs/glm.settings.json` và thêm GLM API key
+> - **GLMT**: Chỉnh sửa `~/.ccs/glmt.settings.json` và thêm Z.AI API key (yêu cầu coding plan)
+> - **Kimi**: Chỉnh sửa `~/.ccs/kimi.settings.json` và thêm Kimi API key
 
 ```bash
-# Dùng Claude subscription (mặc định) cho lập trình cấp cao
-ccs "Lên kế hoạch triển khai kiến trúc microservices"
+# Claude subscription mặc định
+ccs "Lên kế hoạch kiến trúc microservices"
 
-# Chuyển sang GLM cho tác vụ tối ưu chi phí
-ccs glm "Tạo REST API đơn giản"
+# Chuyển sang GLM (tối ưu chi phí)
+ccs glm "Tạo REST API"
 
-# Chuyển sang Kimi để sử dụng khả năng thinking
-ccs kimi "Viết integration tests với xử lý lỗi phù hợp"
+# GLM với thinking mode
+ccs glmt "Giải quyết bài toán thuật toán"
+
+# Kimi cho lập trình
+ccs kimi "Viết integration tests"
 ```
 
 ---
@@ -216,6 +233,73 @@ flowchart TD
 
 ---
 
+## Architecture
+
+### Profile Types
+
+**Settings-based**: GLM, GLMT, Kimi, default
+- Uses `--settings` flag pointing to config files
+- GLMT: Embedded proxy for thinking mode support
+
+**Account-based**: work, personal, team
+- Uses `CLAUDE_CONFIG_DIR` for isolated instances
+- Create with `ccs auth create <profile>`
+
+### Shared Data (v3.1)
+
+Commands and skills symlinked from `~/.ccs/shared/` - no duplication across profiles.
+
+```
+~/.ccs/
+├── shared/                  # Shared across all profiles
+│   ├── agents/
+│   ├── commands/
+│   └── skills/
+├── instances/               # Profile-specific data
+│   └── work/
+│       ├── agents@ → shared/agents/
+│       ├── commands@ → shared/commands/
+│       ├── skills@ → shared/skills/
+│       ├── settings.json    # API keys, credentials
+│       └── sessions/        # Conversation history
+│       └── ...
+```
+
+**Shared**: commands/, skills/, agents/
+**Profile-specific**: settings.json, sessions/, todolists/, logs/
+
+**[i] Windows**: Copies dirs if symlinks unavailable (enable Developer Mode for true symlinks)
+
+---
+
+## GLM with Thinking (GLMT)
+
+> **[!] CẢNH BÁO: CHƯA SẴN SÀNG SẢN XUẤT**
+>
+> **GLMT là thử nghiệm và yêu cầu gỡ lỗi sâu rộng**:
+> - Streaming và hỗ trợ công cụ vẫn đang phát triển
+> - Có thể gặp lỗi, timeout, hoặc phản hồi không đầy đủ
+> - Yêu cầu gỡ lỗi thường xuyên và can thiệp thủ công
+> - **Không khuyến nghị cho quy trình quan trọng hoặc sử dụng sản xuất**
+>
+> **Phương án thay thế cho GLM Thinking**: Cân nhắc trải qua **CCR hustle** với **Transformer của Bedolla** (ZaiTransformer) để có triển khai ổn định hơn.
+>
+> **[!] Quan trọng**: GLMT yêu cầu cài đặt npm (`npm install -g @kaitranntt/ccs`). Không có trong phiên bản shell gốc (yêu cầu Node.js HTTP server).
+
+### GLM vs GLMT
+
+| Tính năng | GLM (`ccs glm`) | GLMT (`ccs glmt`) |
+|-----------|-----------------|-------------------|
+| **Endpoint** | Tương thích Anthropic | Tương thích OpenAI |
+| **Thinking** | Không | Thử nghiệm (reasoning_content) |
+| **Tool Support** | Cơ bản | **Không ổn định (v3.5+)** |
+| **MCP Tools** | Giới hạn | **Lỗi (v3.5+)** |
+| **Streaming** | Ổn định | **Thử nghiệm (v3.4+)** |
+| **TTFB** | <500ms | <500ms (đôi khi), 2-10s+ (thường xuyên) |
+| **Use Case** | Công việc đáng tin cậy | **Chỉ thử nghiệm gỡ lỗi** |
+
+---
+
 ## ⚡ Tính Năng
 
 - **Chuyển Đổi Ngay Lập Tức** - `ccs glm` chuyển sang GLM, không cần sửa config
@@ -230,9 +314,11 @@ flowchart TD
 ## 💻 Ví Dụ Sử Dụng
 
 ```bash
-ccs              # Dùng Claude subscription (mặc định)
-ccs glm          # Dùng GLM fallback
-ccs --version    # Hiển thị phiên bản CCS và vị trí cài đặt
+ccs              # Claude subscription (mặc định)
+ccs glm          # GLM (không thinking)
+ccs glmt         # GLM với thinking
+ccs kimi         # Kimi cho Coding
+ccs --version    # Hiển thị phiên bản
 ```
 
 ### Phiên Đồng Thời (Multi-Account)
@@ -293,10 +379,12 @@ irm ccs.kaitran.ca/uninstall | iex
 ## 📖 Tài Liệu
 
 **Tài liệu đầy đủ trong [docs/](./docs/)**:
-- [Hướng dẫn Cài đặt](./docs/installation.md)
-- [Cấu hình](./docs/configuration.md)
-- [Ví dụ Sử dụng](./docs/usage.md)
-- [Khắc phục Sự cố](./docs/troubleshooting.md)
+- [Hướng dẫn Cài đặt](./docs/en/installation.md)
+- [Cấu hình](./docs/en/configuration.md)
+- [Ví dụ Sử dụng](./docs/en/usage.md)
+- [System Architecture](./docs/system-architecture.md)
+- [GLMT Control Mechanisms](./docs/glmt-controls.md)
+- [Khắc phục Sự cố](./docs/en/troubleshooting.md)
 - [Đóng góp](./CONTRIBUTING.md)
 
 ---
@@ -317,6 +405,6 @@ CCS được cấp phép theo [Giấy phép MIT](LICENSE).
 
 **Được tạo với ❤️ cho những lập trình viên hay hết rate limit**
 
-[⭐ Star repo này](https://github.com/kaitranntt/ccs) | [🐛 Báo cáo vấn đề](https://github.com/kaitranntt/ccs/issues) | [📖 Đọc tài liệu](./docs/)
+[⭐ Star repo này](https://github.com/kaitranntt/ccs) | [🐛 Báo cáo vấn đề](https://github.com/kaitranntt/ccs/issues) | [📖 Đọc tài liệu](./docs/en/)
 
 </div>
