@@ -157,33 +157,125 @@ ccs glmt "Debug complex algorithm with reasoning steps"
 
 ## The Daily Developer Pain Point
 
+<div align="center">
+
+### **STOP Switching. START Orchestrating.**
+
 **Session limits shouldn't kill your flow state.**
+</div>
 
-Developers face multiple subscription scenarios daily:
+You're deep in implementation. Context loaded. Solution crystallizing.<br>
+Then: 🔴 _"You've reached your usage limit."_
 
-1. **Account Separation** - Company Claude account vs personal Claude → you must manually switch contexts to keep work and personal separate
-2. **Rate Limits Hit** - Claude stops mid-project → you manually edit `~/.claude/settings.json`
-3. **Cost Management** - 2-3 Pro subscriptions ($20/month each) vs Claude Max at 5x cost ($100/month) → Pro tier is the practical ceiling for most developers
-4. **Model Choice** - Different tasks benefit from different model strengths → manual switching
+**Momentum gone. Context lost. Productivity crater.**
 
-**Manual context switching breaks your workflow. CCS manages it seamlessly.**
+## **The Solution: Parallel Workflows**
 
-<br>
+<details>
+<summary><strong>❌ OLD WAY:</strong> Switch When You Hit Limits (Reactive)</summary>
+
+### Your Current Workflow:
+- **2pm:** Building features, in the zone
+- **3pm:** 🔴 Usage limit hit
+- **3:05pm:** Stop work, edit `~/.claude/settings.json`
+- **3:15pm:** Switch accounts, lose context
+- **3:30pm:** Try to get back in flow state
+- **4pm:** Finally productive again
+
+- **Result:** 1 hour lost, momentum destroyed, frustration builds
+
+</details>
+
+<details open>
+<summary><strong>✨ NEW WAY:</strong> Run Parallel From Start (Proactive) - <strong>RECOMMENDED</strong></summary>
+
+### Your New Workflow:
+- **2pm:** **Terminal 1:** `ccs "Plan the API architecture"` → Strategic thinking (Claude Pro)
+- **2pm:** **Terminal 2:** `ccs glm "Implement the endpoints"` → Code execution (GLM)
+- **3pm:** Still shipping, no interruptions
+- **4pm:** Flow state achieved, productivity spiking
+- **5pm:** Features shipped, context maintained
+
+- **Result:** Zero downtime, continuous productivity, less frustration
+
+### 💰 **The Value Proposition:**
+- **Setup:** Your existing Claude Pro + GLM Lite (cost-effective add-on)
+- **Value:** Save 1 hour/day × 20 workdays = 20 hours/month recovered
+- **ROI:** Your development time is worth more than the setup cost
+- **Reality:** Shipping faster than the overhead
+
+</details>
+
+## Choose Your Path
+
+<details>
+<summary><strong>Budget-Focused:</strong> GLM Only</summary>
+
+- **Best for:** Cost-conscious development, basic code generation
+- **Usage:** Just use `ccs glm` directly for cost-effective AI assistance
+- **Reality:** No Claude access, but capable for many coding tasks
+- **Setup:** GLM API key only, very affordable
+
+</details>
+
+<details open>
+<summary><strong>✨ Recommended for Daily Development:</strong> 1 Claude Pro + 1 GLM Lite</summary>
+
+- **Best for:** Daily code delivery, serious development work
+- **Usage:** `ccs` for planning + `ccs glm` for execution (parallel workflow)
+- **Reality:** Perfect balance of capability and cost for most developers
+- **Value:** Never hit session limits, continuous productivity
+
+</details>
+
+<details>
+<summary><strong>Power User:</strong> Multiple Claude Pro + GLM Pro</summary>
+
+- **Best for:** Heavy workloads, concurrent projects, solo dev
+- **Unlocks:** Never drain session or weekly limits
+- **Workflow:** 3+ terminals running specialized tasks simultaneously
+
+</details>
+
+<details>
+<summary><strong>Privacy-Focused:</strong> Work/Personal Isolation</summary>
+
+- **When needed:** Strict separation of work and personal AI contexts
+- **Setup:** `ccs auth create work` + `ccs auth create personal`
+- **Note:** Advanced feature - most users don't need this
+
+</details>
+
+---
 
 ## Why CCS Instead of Manual Switching?
 
 <div align="center">
 
-| Feature | Benefit |
-|:--------|:--------|
-| **Account Isolation** | Keep work separate from personal |
-| **Cost Optimization** | 2-3 Pro accounts vs Max at 5x cost |
-| **Instant Switching** | One command, no file editing |
-| **Zero Downtime** | Never interrupt workflow |
-| **Rate Limit Management** | Switch accounts when limits hit |
-| **Cross-Platform** | macOS, Linux, Windows |
+**CCS isn't about "switching when you hit limits at 3pm."**
+
+## **It's about running in parallel from the start.**
 
 </div>
+
+### The Core Difference
+
+| **Manual Switching** | **CCS Orchestration** |
+|:---|:---|
+| 🔴 Hit limits → Stop work → Edit config files → Restart | ✅ Multiple terminals running different models from the start |
+| 😰 Context loss and flow state interruption | 😌 Continuous productivity with preserved context |
+| 📝 Sequential task handling | ⚡ Parallel workflows (planning + execution simultaneously) |
+| 🛠️ Reactive problem solving when blocked | 🎯 Proactive workflow design prevents blocks |
+
+### What CCS Gives You
+
+- **Zero Context Switching**: Keep your flow state without interruption
+- **Parallel Productivity**: Strategic planning in one terminal, code execution in another
+- **Instant Account Management**: One command switches, no config file editing
+- **Work-Life Separation**: Isolate contexts without logging out
+- **Cross-Platform Consistency**: Same smooth experience on macOS, Linux, Windows
+
+**Manual context switching breaks workflow. CCS orchestrates seamlessly.**
 
 <br>
 
@@ -321,8 +413,6 @@ ccs --help       # Show all commands and options
 </div>
 
 </details>
-
-<br>
 
 <details>
 <summary><h3>Tool Support (v3.5) - EXPERIMENTAL</h3></summary>

@@ -161,33 +161,123 @@ ccs glmt "Debug complex algorithm with reasoning steps"
 
 ## The Daily Developer Pain Point
 
-**Session limits shouldn't kill your flow state.**
+<div align="center">
 
-Developers face multiple subscription scenarios daily:
+### **DỪNG việc chuyển đổi. BẮT ĐẦU điều phối.**
 
-1. **Account Separation** - Company Claude account vs personal Claude → you must manually switch contexts to keep work and personal separate
-2. **Rate Limits Hit** - Claude stops mid-project → you manually edit `~/.claude/settings.json`
-3. **Cost Management** - 2-3 Pro subscriptions ($20/month each) vs Claude Max at 5x cost ($100/month) → Pro tier is the practical ceiling for most developers
-4. **Model Choice** - Different tasks benefit from different model strengths → manual switching
+**Giới hạn phiên không nên phá hỏng trạng thái dòng chảy của bạn.**
+</div>
 
-**Manual context switching breaks your workflow. CCS manages it seamlessly.**
+Bạn đang sâu trong triển khai. Ngữ cảnh đã tải. Giải pháp đang kết tinh.<br>
+Sau đó: 🔴 _"Bạn đã đạt đến giới hạn sử dụng."_
 
-<br>
+**Động lực mất đi. Ngữ cảnh mất. Năng suất sụp đổ.**
+
+## **Giải pháp: Quy trình công việc song song**
+
+<details>
+<summary><strong>❌ CÁCH CŨ:</strong> Chuyển đổi khi bạn đạt đến giới hạn (Phản ứng)</summary>
+
+### Quy trình làm việc hiện tại của bạn:
+- **2pm:** Xây dựng tính năng, trong vùng
+- **3pm:** 🔴 Đạt giới hạn sử dụng
+- **3:05pm:** Dừng công việc, chỉnh sửa `~/.claude/settings.json`
+- **3:15pm:** Chuyển tài khoản, mất ngữ cảnh
+- **3:30pm:** Cố gắng quay lại trạng thái dòng chảy
+- **4pm:** Cuối cùng cũng năng suất trở lại
+
+- **Kết quả:** Mất 1 giờ, động lực bị phá hủy, sự thất vọng tăng lên
+
+</details>
+
+<details open>
+<summary><strong>✨ CÁCH MỚI:</strong> Chạy song song ngay từ đầu (Chủ động) - <strong>ĐƯỢC KHUYÊN NGHỊ</strong></summary>
+
+### Quy trình làm việc mới của bạn:
+- **2pm:** **Terminal 1:** `ccs "Lập kế hoạch kiến trúc API"` → Tư duy chiến lược (Claude Pro)
+- **2pm:** **Terminal 2:** `ccs glm "Triển khai các điểm cuối API"` → Thực thi mã (GLM)
+- **3pm:** Vẫn đang giao hàng, không có gián đoạn
+- **4pm:** Đạt trạng thái dòng chảy, năng suất tăng vọt
+- **5pm:** Tính năng đã giao hàng, ngữ cảnh được duy trì
+
+- **Kết quả:** Không có thời gian chết, năng suất liên tục, ít thất vọng hơn
+
+### 💰 **Giá trị đề xuất:**
+- **Thiết lập:** Claude Pro hiện tại của bạn + GLM Lite (add-on hiệu quả về chi phí)
+- **Giá trị:** Tiết kiệm 1 giờ/ngày × 20 ngày làm việc = 20 giờ/tháng được phục hồi
+- **ROI:** Thời gian phát triển của bạn có giá trị hơn chi phí thiết lập
+- **Thực tế:** Giao hàng nhanh hơn chi phí vận hành
+
+</details>
+
+## Chọn con đường của bạn
+
+<details>
+<summary><strong>Tập trung vào ngân sách:</strong> Chỉ GLM</summary>
+
+- **Tốt nhất cho:** Phát triển tiết kiệm chi phí, tạo mã cơ bản
+- **Sử dụng:** Chỉ sử dụng `ccs glm` trực tiếp để được trợ giúp AI hiệu quả về chi phí
+- **Thực tế:** Không có quyền truy cập Claude, nhưng có khả năng cho nhiều nhiệm vụ mã hóa
+- **Thiết lập:** Chỉ cần API key GLM, rất phải chăng
+
+</details>
+
+<details open>
+<summary><strong>✨ Được khuyên nghị cho phát triển hàng ngày:</strong> 1 Claude Pro + 1 GLM Lite</summary>
+
+- **Tốt nhất cho:** Giao hàng mã hàng ngày, công việc phát triển nghiêm túc
+- **Sử dụng:** `ccs` để lập kế hoạch + `ccs glm` để thực thi (quy trình công việc song song)
+- **Thực tế:** Cân bằng hoàn hảo giữa khả năng và chi phí cho hầu hết các nhà phát triển
+- **Giá trị:** Không bao giờ đạt đến giới hạn phiên, năng suất liên tục
+
+</details>
+
+<details>
+<summary><strong>Power User:</strong> Nhiều Claude Pro + GLM Pro</summary>
+
+- **Tốt nhất cho:** Nhiều công việc, dự án đồng thời, solo dev
+- **Mở khóa:** Không bao giờ cạn kiệt giới hạn phiên hoặc hàng tuần
+- **Quy trình làm việc:** 3+ terminal chạy các nhiệm vụ chuyên biệt đồng thời
+
+</details>
+
+<details>
+<summary><strong>Tập trung vào quyền riêng tư:</strong> Cách ly Công việc/Cá nhân</summary>
+
+- **Khi cần:** Cách ly nghiêm ngặt ngữ cảnh AI công việc và cá nhân
+- **Thiết lập:** `ccs auth create work` + `ccs auth create personal`
+- **Lưu ý:** Tính năng nâng cao - hầu hết người dùng không cần điều này
+
+</details>
+
+---
 
 ## Why CCS Instead of Manual Switching?
 
 <div align="center">
 
-| Feature | Benefit |
-|:--------|:--------|
-| **Account Isolation** | Keep work separate from personal |
-| **Cost Optimization** | 2-3 Pro accounts vs Max at 5x cost |
-| **Instant Switching** | One command, no file editing |
-| **Zero Downtime** | Never interrupt workflow |
-| **Rate Limit Management** | Switch accounts when limits hit |
-| **Cross-Platform** | macOS, Linux, Windows |
+**CCS không phải về "chuyển đổi khi bạn đạt đến giới hạn lúc 3pm."**
+
+## **Nó về việc chạy song song ngay từ đầu.**
 
 </div>
+
+### Sự khác biệt cốt lõi
+
+| **Chuyển đổi thủ công** | **Điều phối CCS** |
+|:---|:---|
+| 🔴 Đạt giới hạn → Dừng công việc → Chỉnh sửa tệp cấu hình → Khởi động lại | ✅ Nhiều terminal chạy các mô hình khác nhau ngay từ đầu |
+| 😰 Mất ngữ cảnh và gián đoạn trạng thái dòng chảy | 😌 Năng suất liên tục với ngữ cảnh được bảo toàn |
+| 📝 Xử lý nhiệm vụ tuần tự | ⚡ Quy trình công việc song song (lập kế hoạch + thực thi đồng thời) |
+| 🛠️ Giải quyết vấn đề phản ứng khi bị chặn | 🎯 Thiết kế quy trình công việc chủ động ngăn chặn chặn |
+
+### CCS mang lại cho bạn
+
+- **Không chuyển đổi ngữ cảnh:** Duy trì trạng thái dòng chảy của bạn mà không bị gián đoạn
+- **Năng suất song song:** Lập kế hoạch chiến lược trong một terminal, thực thi mã trong terminal khác
+- **Quản lý tài khoản tức thì:** Một lệnh chuyển đổi, không cần chỉnh sửa tệp cấu hình
+- **Cách ly công việc-cuộc sống:** Cách ly ngữ cảnh mà không cần đăng xuất
+- **Tính nhất quán đa nền tảng:** Trải nghiệm mượt mà tương tự trên macOS, Linux, Windows
 
 <br>
 
