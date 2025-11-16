@@ -255,6 +255,12 @@ async function handleDoctorCommand() {
 }
 
 async function handleUpdateCommand() {
+  // First, copy .claude/ directory from package to ~/.ccs/.claude/
+  const ClaudeDirInstaller = require('./utils/claude-dir-installer');
+  const installer = new ClaudeDirInstaller();
+  installer.install();
+
+  // Then, create symlinks from ~/.ccs/.claude/ to ~/.claude/
   const ClaudeSymlinkManager = require('./utils/claude-symlink-manager');
   const manager = new ClaudeSymlinkManager();
 

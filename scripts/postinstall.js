@@ -103,6 +103,17 @@ function createConfigFiles() {
     }
     console.log('');
 
+    // Copy .claude/ directory from package to ~/.ccs/.claude/ (v4.1.1)
+    try {
+      const ClaudeDirInstaller = require('../bin/utils/claude-dir-installer');
+      const installer = new ClaudeDirInstaller();
+      const packageDir = path.join(__dirname, '..');
+      installer.install(packageDir);
+    } catch (err) {
+      console.warn('[!] Failed to install .claude/ directory:', err.message);
+      console.warn('    CCS items may not be available');
+    }
+
     // Install CCS items to ~/.claude/ (v4.1.0)
     try {
       const ClaudeSymlinkManager = require('../bin/utils/claude-symlink-manager');
