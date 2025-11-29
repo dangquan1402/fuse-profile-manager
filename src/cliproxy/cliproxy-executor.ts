@@ -80,7 +80,7 @@ async function waitForProxyReady(
  * Execute Claude CLI with CLIProxy (main entry point)
  *
  * @param claudeCli Path to Claude CLI executable
- * @param provider CLIProxy provider (gemini, chatgpt, qwen)
+ * @param provider CLIProxy provider (gemini, codex, agy)
  * @param args Arguments to pass to Claude CLI
  * @param config Optional executor configuration
  */

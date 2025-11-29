@@ -20,11 +20,12 @@ function getColors(): Record<ColorName, string> {
       green: '\x1b[0;32m',
       blue: '\x1b[0;34m',
       bold: '\x1b[1m',
+      cyanBold: '\x1b[1;36m',
       reset: '\x1b[0m',
     };
   }
 
-  return { red: '', yellow: '', cyan: '', green: '', blue: '', bold: '', reset: '' };
+  return { red: '', yellow: '', cyan: '', green: '', blue: '', bold: '', cyanBold: '', reset: '' };
 }
 
 // Colors object (dynamic)

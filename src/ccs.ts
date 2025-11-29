@@ -295,7 +295,7 @@ async function main(): Promise<void> {
     const profileInfo = detector.detectProfileType(profile);
 
     if (profileInfo.type === 'cliproxy') {
-      // CLIPROXY FLOW: OAuth-based profiles (gemini, chatgpt, qwen)
+      // CLIPROXY FLOW: OAuth-based profiles (gemini, codex, agy)
       await execClaudeWithCLIProxy(claudeCli, profileInfo.name as CLIProxyProvider, remainingArgs);
     } else if (profileInfo.type === 'settings') {
       // Check if this is GLMT profile (requires proxy)

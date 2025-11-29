@@ -18,7 +18,15 @@ export enum LogLevel {
 /**
  * Color codes (TTY-aware)
  */
-export type ColorName = 'red' | 'green' | 'yellow' | 'blue' | 'cyan' | 'bold' | 'reset';
+export type ColorName =
+  | 'red'
+  | 'green'
+  | 'yellow'
+  | 'blue'
+  | 'cyan'
+  | 'bold'
+  | 'cyanBold'
+  | 'reset';
 
 /**
  * Terminal capabilities

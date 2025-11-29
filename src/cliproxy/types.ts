@@ -107,8 +107,11 @@ export interface DownloadResult {
 
 /**
  * Supported CLIProxy providers
+ * - gemini: Google Gemini via OAuth
+ * - codex: OpenAI Codex via OAuth
+ * - agy: Antigravity via OAuth (short name for easy usage)
  */
-export type CLIProxyProvider = 'gemini' | 'codex' | 'qwen';
+export type CLIProxyProvider = 'gemini' | 'codex' | 'agy';
 
 /**
  * CLIProxy config.yaml structure (minimal)

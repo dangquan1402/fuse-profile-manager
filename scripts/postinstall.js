@@ -121,6 +121,8 @@ function createConfigFiles() {
     // This gives users control over when to modify their Claude configuration
 
     // Create config.json if missing
+    // NOTE: gemini/codex profiles NOT included - they are added on-demand when user
+    // runs `ccs gemini` or `ccs codex` for first time (requires OAuth auth first)
     const configPath = path.join(ccsDir, 'config.json');
     if (!fs.existsSync(configPath)) {
       const config = {
@@ -145,12 +147,17 @@ function createConfigFiles() {
       if (!config.profiles) {
         config.profiles = {};
       }
+      let configUpdated = false;
       if (!config.profiles.glmt) {
         config.profiles.glmt = '~/.ccs/glmt.settings.json';
+        configUpdated = true;
+      }
+      // NOTE: gemini/codex profiles added on-demand, not during migration
+      if (configUpdated) {
         const tmpPath = `${configPath}.tmp`;
         fs.writeFileSync(tmpPath, JSON.stringify(config, null, 2) + '\n', 'utf8');
         fs.renameSync(tmpPath, configPath);
-        console.log('[OK] Updated config with GLMT profile');
+        console.log('[OK] Updated config with glmt profile');
       } else {
         console.log('[OK] Config exists: ~/.ccs/config.json (preserved)');
       }
@@ -298,6 +305,10 @@ function createConfigFiles() {
     } else {
       console.log('[OK] Kimi profile exists: ~/.ccs/kimi.settings.json (preserved)');
     }
+
+    // NOTE: gemini.settings.json and codex.settings.json are NOT created during install
+    // They are created on-demand when user runs `ccs gemini` or `ccs codex` for the first time
+    // This prevents confusion - users need to run `--auth` first anyway
 
     // Migrate existing Kimi configs to remove deprecated model fields (v4.1.2)
     // Kimi API changed - model fields now cause 401 errors

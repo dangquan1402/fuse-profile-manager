@@ -14,7 +14,7 @@ import { Config, Settings, ProfileMetadata } from '../types';
 export type ProfileType = 'settings' | 'account' | 'cliproxy' | 'default';
 
 /** CLIProxy profile names (OAuth-based, zero config) */
-export const CLIPROXY_PROFILES = ['gemini', 'codex', 'qwen'] as const;
+export const CLIPROXY_PROFILES = ['gemini', 'codex', 'agy'] as const;
 export type CLIProxyProfileName = (typeof CLIPROXY_PROFILES)[number];
 
 export interface ProfileDetectionResult {
@@ -92,7 +92,7 @@ class ProfileDetector {
       return this.resolveDefaultProfile();
     }
 
-    // Priority 0: Check CLIProxy profiles (gemini, chatgpt, qwen) - OAuth-based, zero config
+    // Priority 0: Check CLIProxy profiles (gemini, codex, agy) - OAuth-based, zero config
     if (CLIPROXY_PROFILES.includes(profileName as CLIProxyProfileName)) {
       return {
         type: 'cliproxy',

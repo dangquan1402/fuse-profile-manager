@@ -58,9 +58,16 @@ export {
   getBinDir,
   configExists,
   deleteConfig,
-  PROVIDER_CONFIGS,
   CLIPROXY_DEFAULT_PORT,
 } from './config-generator';
+
+// Base config loader (for reading config/base-*.settings.json)
+export {
+  loadBaseConfig,
+  getModelMappingFromConfig,
+  getEnvVarsFromConfig,
+  clearConfigCache,
+} from './base-config-loader';
 
 // Executor
 export { execClaudeWithCLIProxy, isPortAvailable, findAvailablePort } from './cliproxy-executor';

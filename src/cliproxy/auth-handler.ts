@@ -1,7 +1,7 @@
 /**
  * Auth Handler for CLIProxyAPI
  *
- * Manages OAuth authentication for CLIProxy providers (Gemini, Codex, Qwen).
+ * Manages OAuth authentication for CLIProxy providers (Gemini, Codex, Antigravity).
  * CLIProxyAPI handles OAuth internally - we just need to:
  * 1. Check if auth exists (token files in CCS auth directory)
  * 2. Trigger OAuth flow by spawning binary with auth flag
@@ -93,12 +93,12 @@ const OAUTH_CONFIGS: Record<CLIProxyProvider, ProviderOAuthConfig> = {
     scopes: ['openid', 'profile'],
     authFlag: '-codex-login',
   },
-  qwen: {
-    provider: 'qwen',
-    displayName: 'Alibaba Qwen',
-    authUrl: 'https://auth.aliyun.com/oauth2/authorize',
-    scopes: ['dashscope'],
-    authFlag: '-qwen-login',
+  agy: {
+    provider: 'agy',
+    displayName: 'Antigravity',
+    authUrl: 'https://antigravity.ai/oauth/authorize',
+    scopes: ['api'],
+    authFlag: '-antigravity-login',
   },
 };
 
@@ -181,7 +181,7 @@ export function getAuthStatus(provider: CLIProxyProvider): AuthStatus {
  * Get auth status for all providers
  */
 export function getAllAuthStatus(): AuthStatus[] {
-  const providers: CLIProxyProvider[] = ['gemini', 'codex', 'qwen'];
+  const providers: CLIProxyProvider[] = ['gemini', 'codex', 'agy'];
   return providers.map(getAuthStatus);
 }
 
