@@ -1,3 +1,17 @@
+# [5.3.0-beta.1](https://github.com/kaitranntt/ccs/compare/v5.2.0...v5.3.0-beta.1) (2025-12-01)
+
+
+### Bug Fixes
+
+* **cliproxy:** use double-dash flags for cliproxyapi auth ([#24](https://github.com/kaitranntt/ccs/issues/24)) ([4c81f28](https://github.com/kaitranntt/ccs/commit/4c81f28f0b67ef92cf74d0f5c13a5943ff0a7f00))
+* **glmt:** handle 401 errors and headers-already-sent exception ([#30](https://github.com/kaitranntt/ccs/issues/30)) ([c953382](https://github.com/kaitranntt/ccs/commit/c95338232a37981b95b785b47185ce18d6d94b7a)), closes [#26](https://github.com/kaitranntt/ccs/issues/26)
+
+
+### Features
+
+* **cliproxy:** add qwen code oauth provider support ([#31](https://github.com/kaitranntt/ccs/issues/31)) ([a3f1e52](https://github.com/kaitranntt/ccs/commit/a3f1e52ac68600ba0806d67aacceb6477ffa3543)), closes [#29](https://github.com/kaitranntt/ccs/issues/29)
+* **cliproxy:** auto-update cliproxyapi to latest release on startup ([8873ccd](https://github.com/kaitranntt/ccs/commit/8873ccd981679e8acff8965accdc22215c6e4aa2))
+
 # [5.2.0](https://github.com/kaitranntt/ccs/compare/v5.1.1...v5.2.0) (2025-12-01)
 
 
