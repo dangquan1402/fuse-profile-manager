@@ -13,15 +13,18 @@ export function handleHelpCommand(): void {
   console.log('');
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SECTION 1: API KEY MODELS
+  // SECTION 1: API KEY MODELS + PROFILE MANAGEMENT
   // ═══════════════════════════════════════════════════════════════════════════
-  console.log(colored('═══ API Key Models ═══', 'cyanBold'));
-  console.log('  Configure API keys in ~/.ccs/*.settings.json');
+  console.log(colored('═══ API Key Profiles ═══', 'cyanBold'));
+  console.log('  Configure in ~/.ccs/*.settings.json');
   console.log('');
   console.log(`  ${colored('ccs', 'yellow')}                         Use default Claude account`);
   console.log(`  ${colored('ccs glm', 'yellow')}                      GLM 4.6 (API key required)`);
   console.log(`  ${colored('ccs glmt', 'yellow')}                     GLM with thinking mode`);
   console.log(`  ${colored('ccs kimi', 'yellow')}                     Kimi for Coding (API key)`);
+  console.log(`  ${colored('ccs profile create', 'yellow')}          Create custom API profile`);
+  console.log(`  ${colored('ccs profile remove', 'yellow')}          Remove a profile`);
+  console.log(`  ${colored('ccs profile list', 'yellow')}            List all profiles`);
   console.log('');
 
   // ═══════════════════════════════════════════════════════════════════════════

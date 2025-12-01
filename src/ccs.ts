@@ -253,6 +253,13 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Special case: profile command
+  if (firstArg === 'profile') {
+    const { handleProfileCommand } = await import('./commands/profile-command');
+    await handleProfileCommand(args.slice(1));
+    return;
+  }
+
   // Special case: headless delegation (-p flag)
   if (args.includes('-p') || args.includes('--prompt')) {
     const { DelegationHandler } = await import('./delegation/delegation-handler');
