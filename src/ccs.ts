@@ -204,7 +204,7 @@ async function main(): Promise<void> {
 
   // Special case: help command
   if (firstArg === '--help' || firstArg === '-h' || firstArg === 'help') {
-    handleHelpCommand();
+    await handleHelpCommand();
     return;
   }
 
