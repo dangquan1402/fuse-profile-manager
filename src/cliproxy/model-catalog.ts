@@ -1,0 +1,81 @@
+/**
+ * Model Catalog - Available models for CLI Proxy providers
+ *
+ * Ships with CCS to provide users with interactive model selection.
+ * Models are mapped to their internal names used by the proxy backend.
+ */
+
+import { CLIProxyProvider } from './types';
+
+/**
+ * Model entry definition
+ */
+export interface ModelEntry {
+  /** Literal model name to put in settings.json */
+  id: string;
+  /** Human-readable name for display */
+  name: string;
+  /** Access tier indicator */
+  tier?: 'free' | 'paid';
+}
+
+/**
+ * Provider catalog definition
+ */
+export interface ProviderCatalog {
+  provider: CLIProxyProvider;
+  displayName: string;
+  models: ModelEntry[];
+  defaultModel: string;
+}
+
+/**
+ * Model catalog for providers that support interactive configuration
+ *
+ * Models listed in order of recommendation (top = best)
+ */
+export const MODEL_CATALOG: Partial<Record<CLIProxyProvider, ProviderCatalog>> = {
+  agy: {
+    provider: 'agy',
+    displayName: 'Antigravity',
+    defaultModel: 'gemini-3-pro-preview',
+    models: [
+      { id: 'gemini-claude-opus-4-5-thinking', name: 'Claude Opus 4.5 Thinking' },
+      { id: 'gemini-claude-sonnet-4-5-thinking', name: 'Claude Sonnet 4.5 Thinking' },
+      { id: 'gemini-claude-sonnet-4-5', name: 'Claude Sonnet 4.5' },
+      { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro', tier: 'paid' },
+    ],
+  },
+  gemini: {
+    provider: 'gemini',
+    displayName: 'Gemini',
+    defaultModel: 'gemini-2.5-pro',
+    models: [
+      { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro', tier: 'paid' },
+      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
+    ],
+  },
+};
+
+/**
+ * Check if provider supports interactive model configuration
+ */
+export function supportsModelConfig(provider: CLIProxyProvider): boolean {
+  return provider in MODEL_CATALOG;
+}
+
+/**
+ * Get catalog for provider
+ */
+export function getProviderCatalog(provider: CLIProxyProvider): ProviderCatalog | undefined {
+  return MODEL_CATALOG[provider];
+}
+
+/**
+ * Find model entry by ID
+ */
+export function findModel(provider: CLIProxyProvider, modelId: string): ModelEntry | undefined {
+  const catalog = MODEL_CATALOG[provider];
+  if (!catalog) return undefined;
+  return catalog.models.find((m) => m.id === modelId);
+}

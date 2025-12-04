@@ -70,6 +70,16 @@ export {
   clearConfigCache,
 } from './base-config-loader';
 
+// Model catalog and configuration
+export type { ModelEntry, ProviderCatalog } from './model-catalog';
+export { MODEL_CATALOG, supportsModelConfig, getProviderCatalog, findModel } from './model-catalog';
+export {
+  hasUserSettings,
+  getCurrentModel,
+  configureProviderModel,
+  showCurrentConfig,
+} from './model-config';
+
 // Executor
 export { execClaudeWithCLIProxy, isPortAvailable, findAvailablePort } from './cliproxy-executor';
 
