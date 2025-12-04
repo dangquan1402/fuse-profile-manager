@@ -40,6 +40,7 @@ export {
   ensureCLIProxyBinary,
   isCLIProxyInstalled,
   getCLIProxyPath,
+  getInstalledCliproxyVersion,
 } from './binary-manager';
 
 // Config generation

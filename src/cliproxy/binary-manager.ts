@@ -900,4 +900,20 @@ export function getCLIProxyPath(): string {
   return manager.getBinaryPath();
 }
 
+/**
+ * Get installed CLIProxyAPI version from .version file
+ * Returns the fallback version if not installed or version file missing
+ */
+export function getInstalledCliproxyVersion(): string {
+  const versionFile = path.join(getBinDir(), '.version');
+  if (fs.existsSync(versionFile)) {
+    try {
+      return fs.readFileSync(versionFile, 'utf8').trim();
+    } catch {
+      return CLIPROXY_FALLBACK_VERSION;
+    }
+  }
+  return CLIPROXY_FALLBACK_VERSION;
+}
+
 export default BinaryManager;
