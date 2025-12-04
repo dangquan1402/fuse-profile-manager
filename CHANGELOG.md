@@ -1,3 +1,10 @@
+# [5.5.0-dev.1](https://github.com/kaitranntt/ccs/compare/v5.4.4-dev.2...v5.5.0-dev.1) (2025-12-04)
+
+
+### Features
+
+* **kimi:** update default model to kimi-k2-thinking-turbo ([134511c](https://github.com/kaitranntt/ccs/commit/134511c38b581a720da6b9d7e6608ca6b3c63fb1))
+
 ## [5.4.4-dev.2](https://github.com/kaitranntt/ccs/compare/v5.4.4-dev.1...v5.4.4-dev.2) (2025-12-04)
 
 
