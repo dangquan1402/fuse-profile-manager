@@ -282,6 +282,13 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Special case: cliproxy command (manages CLIProxyAPI binary)
+  if (firstArg === 'cliproxy') {
+    const { handleCliproxyCommand } = await import('./commands/cliproxy-command');
+    await handleCliproxyCommand(args.slice(1));
+    return;
+  }
+
   // Special case: headless delegation (-p flag)
   if (args.includes('-p') || args.includes('--prompt')) {
     const { DelegationHandler } = await import('./delegation/delegation-handler');

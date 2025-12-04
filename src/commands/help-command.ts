@@ -204,6 +204,13 @@ Claude Code Profile & Model Switcher`.trim();
     ['Settings:', '~/.ccs/*.settings.json'],
   ]);
 
+  // CLI Proxy management
+  printSubSection('CLI Proxy Management', [
+    ['ccs cliproxy', 'Show CLIProxyAPI status and version'],
+    ['ccs cliproxy --install <ver>', 'Install specific version (e.g., 6.5.40)'],
+    ['ccs cliproxy --latest', 'Update to latest version'],
+  ]);
+
   // CLI Proxy paths
   console.log(subheader('CLI Proxy:'));
   console.log(`  Binary:      ${color('~/.ccs/cliproxy/bin/cli-proxy-api', 'path')}`);
