@@ -29,6 +29,7 @@ function Layout() {
           </div>
         </header>
         <Outlet />
+        <LocalhostDisclaimer />
       </main>
     </SidebarProvider>
   );
@@ -50,7 +51,6 @@ export default function App() {
           </Route>
         </Routes>
         <Toaster position="top-right" />
-        <LocalhostDisclaimer />
       </BrowserRouter>
     </QueryClientProvider>
   );
