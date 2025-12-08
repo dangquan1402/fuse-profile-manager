@@ -154,7 +154,10 @@ function checkSymlinkStatus(): { valid: boolean; message: string } {
   if (validLinks === linkTypes.length) {
     return { valid: true, message: 'Symlinks active' };
   } else if (validLinks > 0) {
-    return { valid: false, message: `Symlinks partially configured (${validLinks}/${linkTypes.length})` };
+    return {
+      valid: false,
+      message: `Symlinks partially configured (${validLinks}/${linkTypes.length})`,
+    };
   }
 
   return { valid: false, message: 'Symlinks not configured' };

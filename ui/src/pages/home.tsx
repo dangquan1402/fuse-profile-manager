@@ -117,7 +117,9 @@ export function HomePage() {
           value={overview?.health ? `${overview.health.passed}/${overview.health.total}` : '-'}
           icon={Activity}
           color={
-            overview?.health ? HEALTH_COLORS[overview.health.status as keyof typeof HEALTH_COLORS] : undefined
+            overview?.health
+              ? HEALTH_COLORS[overview.health.status as keyof typeof HEALTH_COLORS]
+              : undefined
           }
           onClick={() => navigate('/health')}
         />
