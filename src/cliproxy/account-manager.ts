@@ -292,10 +292,21 @@ export function discoverExistingAccounts(): void {
       // Skip if no type field
       if (!data.type) continue;
 
-      const provider = data.type.toLowerCase() as CLIProxyProvider;
+      // Map token type values to internal provider names
+      // CLIProxyAPI uses different type values in tokens (e.g., "antigravity" vs "agy")
+      const typeToProvider: Record<string, CLIProxyProvider> = {
+        gemini: 'gemini',
+        antigravity: 'agy',
+        codex: 'codex',
+        qwen: 'qwen',
+        iflow: 'iflow',
+      };
 
-      // Validate provider
-      if (!['gemini', 'codex', 'agy', 'qwen', 'iflow'].includes(provider)) {
+      const typeValue = data.type.toLowerCase();
+      const provider = typeToProvider[typeValue];
+
+      // Skip if unknown provider type
+      if (!provider) {
         continue;
       }
 
