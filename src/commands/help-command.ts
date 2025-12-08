@@ -210,7 +210,7 @@ Claude Code Profile & Model Switcher`.trim();
   printSubSection('CLI Proxy Management', [
     ['ccs cliproxy', 'Show CLIProxyAPI status and version'],
     ['ccs cliproxy --help', 'Full CLIProxy management help'],
-    ['ccs cliproxy --install <ver>', 'Install specific version (e.g., 6.5.40)'],
+    ['ccs cliproxy --install <ver>', 'Install specific version (e.g., 6.5.53)'],
     ['ccs cliproxy --latest', 'Update to latest version'],
   ]);
 

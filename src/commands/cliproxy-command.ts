@@ -633,7 +633,7 @@ async function showStatus(verbose: boolean): Promise<void> {
 async function installVersion(version: string, verbose: boolean): Promise<void> {
   // Validate version format (basic semver check)
   if (!/^\d+\.\d+\.\d+$/.test(version)) {
-    console.error('[X] Invalid version format. Expected format: X.Y.Z (e.g., 6.5.40)');
+    console.error('[X] Invalid version format. Expected format: X.Y.Z (e.g., 6.5.53)');
     process.exit(1);
   }
 
@@ -732,7 +732,7 @@ export async function handleCliproxyCommand(args: string[]): Promise<void> {
     if (!version || version.startsWith('-')) {
       console.error('[X] Missing version argument for --install');
       console.error('    Usage: ccs cliproxy --install <version>');
-      console.error('    Example: ccs cliproxy --install 6.5.40');
+      console.error('    Example: ccs cliproxy --install 6.5.53');
       process.exit(1);
     }
     await installVersion(version, verbose);

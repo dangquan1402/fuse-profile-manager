@@ -127,22 +127,34 @@ function checkSymlinkStatus(): { valid: boolean; message: string } {
     return { valid: false, message: 'Shared directory not found' };
   }
 
-  // Check if ~/.claude/commands links to shared
-  const claudeDir = path.join(os.homedir(), '.claude');
-  const commandsLink = path.join(claudeDir, 'commands');
+  // Check all three symlinks: commands, skills, agents
+  const linkTypes = ['commands', 'skills', 'agents'];
+  let validLinks = 0;
 
-  try {
-    if (fs.existsSync(commandsLink)) {
-      const stats = fs.lstatSync(commandsLink);
-      if (stats.isSymbolicLink()) {
-        const target = fs.readlinkSync(commandsLink);
-        if (target.includes('.ccs/shared/commands')) {
-          return { valid: true, message: 'Symlinks active' };
+  for (const linkType of linkTypes) {
+    const linkPath = path.join(sharedDir, linkType);
+
+    try {
+      if (fs.existsSync(linkPath)) {
+        const stats = fs.lstatSync(linkPath);
+        if (stats.isSymbolicLink()) {
+          const target = fs.readlinkSync(linkPath);
+          // Check if it points to ~/.claude/{linkType}
+          const expectedTarget = path.join(os.homedir(), '.claude', linkType);
+          if (path.resolve(path.dirname(linkPath), target) === path.resolve(expectedTarget)) {
+            validLinks++;
+          }
         }
       }
+    } catch {
+      // Not a symlink or read error
     }
-  } catch {
-    // Not a symlink or read error
+  }
+
+  if (validLinks === linkTypes.length) {
+    return { valid: true, message: 'Symlinks active' };
+  } else if (validLinks > 0) {
+    return { valid: false, message: `Symlinks partially configured (${validLinks}/${linkTypes.length})` };
   }
 
   return { valid: false, message: 'Symlinks not configured' };

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useSharedItems, useSharedSummary } from '@/hooks/use-shared';
 import { FileText, Sparkles, Bot, AlertTriangle } from 'lucide-react';
 
@@ -27,14 +28,13 @@ export function SharedPage() {
       </div>
 
       {summary && !summary.symlinkStatus.valid && (
-        <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-          <CardContent className="pt-4 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-yellow-600" />
-            <span className="text-sm text-yellow-800 dark:text-yellow-200">
-              {summary.symlinkStatus.message}. Run `ccs sync` to configure.
-            </span>
-          </CardContent>
-        </Card>
+        <Alert variant="warning">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Configuration Required</AlertTitle>
+          <AlertDescription>
+            {summary.symlinkStatus.message}. Run `ccs sync` to configure.
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Tab buttons */}
