@@ -478,10 +478,17 @@ function maskApiKeys(settings: Settings): Settings {
   if (!settings.env) return settings;
 
   const masked = { ...settings, env: { ...settings.env } };
-  const sensitiveKeys = ['ANTHROPIC_AUTH_TOKEN', 'API_KEY', 'AUTH_TOKEN'];
+  // Pattern-based matching for sensitive keys
+  const sensitivePatterns = [
+    /^ANTHROPIC_AUTH_TOKEN$/, // Exact match for Anthropic auth token
+    /_API_KEY$/, // Keys ending with _API_KEY
+    /_AUTH_TOKEN$/, // Keys ending with _AUTH_TOKEN
+    /^API_KEY$/, // Exact match for API_KEY
+    /^AUTH_TOKEN$/, // Exact match for AUTH_TOKEN
+  ];
 
   for (const key of Object.keys(masked.env)) {
-    if (sensitiveKeys.some((sensitive) => key.includes(sensitive))) {
+    if (sensitivePatterns.some((pattern) => pattern.test(key))) {
       const value = masked.env[key];
       if (value && value.length > 8) {
         masked.env[key] =
