@@ -440,6 +440,7 @@ src/types/
    - Intelligent profile selection algorithms
    - Cost estimation with typed calculation models
    - Performance optimization through type-aware caching
+   - Recently implemented significant UI improvements for analytics dashboard, enhancing data presentation.
 
 2. **Enhanced Session Management**
    - Type-safe session persistence with serialization
@@ -584,21 +585,29 @@ src/types/
 - **User Experience**: One-command channel switching without data loss
 - **Backward Compatibility**: Zero breaking changes, existing workflows preserved
 
-### Version 4.5.1 - UI Layout Improvements
+### Version 4.5.1 - UI Quality Gate Fixes & Layout Improvements
 **Release Date**: 2025-12-08
 
 #### UI Fixes & Improvements
+- ✅ **Auto-formatting**: 31 UI files auto-formatted for consistent styling.
+- ✅ **Fast Refresh Exports**: Resolved `react-refresh/only-export-components` by extracting `buttonVariants`, `useSidebar`, and `useWebSocketContext` to separate files.
+- ✅ **React Hooks Issues**: Fixed `react-hooks/purity` (`Math.random()` in `useMemo` for `sidebar.tsx`) and `react-hooks/set-state-in-effect` (`use-theme.ts`, `settings.tsx`).
+- ✅ **useWebSocket Hook Restructure**: Addressed `react-hooks/immutability` errors and dependency array warnings in `use-websocket.ts`.
+- ✅ **TypeScript Strict Mode**: Implemented null-check for `document.getElementById('root')` in `src/main.tsx` for strict mode compliance.
+- ✅ **Duplicate Directory Removal**: Cleaned up extraneous `ui/@/` directory.
 - ✅ **CLIProxy Card Padding**: Removed excessive padding from CLIProxy cards for better visual integration.
-- ✅ **CLIProxy Dashboard Layout**: Improved overall layout and styling of the CLIProxy dashboard for enhanced user experience.
-- ✅ **Dropdown Styling**: Refined dropdown component styling for consistency and readability.
+- ✅ **CLIProxy Dashboard Layout**: Improved overall layout and styling of the CLIProxy dashboard.
+- ✅ **Dropdown Styling**: Refined dropdown component styling.
+- ✅ **Model Usage Card**: Corrected icon display and refined donut chart styling.
 
 #### Technical Improvements
 - **Improved UI Responsiveness**: Adjustments ensure better display across various screen sizes.
 - **Enhanced User Experience**: Minor visual tweaks lead to a more polished and intuitive interface.
 
 #### Validation Results
-- **UI Rendering**: ✅ All UI components render correctly after layout adjustments.
+- **UI Rendering**: ✅ All UI components render correctly after adjustments and fixes.
 - **Functional Impact**: ✅ No regressions introduced, core functionality remains stable.
+- **Code Quality**: ✅ All ESLint and TypeScript quality gates passed after fixes.
 
 ---
 

@@ -75,8 +75,9 @@ function getSharedItems(type: 'commands' | 'skills' | 'agents'): SharedItem[] {
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        // Skill/Agent: look for prompt.md
-        const promptPath = path.join(sharedDir, entry.name, 'prompt.md');
+        // Skill/Agent: look for SKILL.md for skills, prompt.md for agents
+        const markdownFile = type === 'skills' ? 'SKILL.md' : 'prompt.md';
+        const promptPath = path.join(sharedDir, entry.name, markdownFile);
         if (fs.existsSync(promptPath)) {
           const content = fs.readFileSync(promptPath, 'utf8');
           const description = extractDescription(content);

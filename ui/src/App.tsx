@@ -15,6 +15,7 @@ import {
   SettingsPage,
   HealthPage,
   SharedPage,
+  AnalyticsPage,
 } from '@/pages';
 
 function Layout() {
@@ -42,6 +43,7 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/api" element={<ApiPage />} />
             <Route path="/cliproxy" element={<CliproxyPage />} />
             <Route path="/accounts" element={<AccountsPage />} />

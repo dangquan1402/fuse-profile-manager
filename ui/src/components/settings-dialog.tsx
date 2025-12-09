@@ -145,7 +145,17 @@ function SettingsDialogContent({
   };
 
   const isSensitiveKey = (key: string): boolean => {
-    return key.includes('TOKEN') || key.includes('KEY') || key.includes('SECRET');
+    // Pattern-based matching for sensitive keys (same as backend)
+    const sensitivePatterns = [
+      /^ANTHROPIC_AUTH_TOKEN$/, // Exact match for Anthropic auth token
+      /_API_KEY$/, // Keys ending with _API_KEY
+      /_AUTH_TOKEN$/, // Keys ending with _AUTH_TOKEN
+      /^API_KEY$/, // Exact match for API_KEY
+      /^AUTH_TOKEN$/, // Exact match for AUTH_TOKEN
+      /_SECRET$/, // Keys ending with _SECRET
+      /^SECRET$/, // Exact match for SECRET
+    ];
+    return sensitivePatterns.some((pattern) => pattern.test(key));
   };
 
   return (

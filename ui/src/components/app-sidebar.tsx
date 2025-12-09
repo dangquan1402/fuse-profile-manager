@@ -1,5 +1,15 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Key, Zap, Users, Settings, Activity, FolderOpen, ChevronRight } from 'lucide-react';
+import {
+  Home,
+  Key,
+  Zap,
+  Users,
+  Settings,
+  Activity,
+  FolderOpen,
+  ChevronRight,
+  BarChart3,
+} from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -24,7 +34,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 const navGroups = [
   {
     title: 'General',
-    items: [{ path: '/', icon: Home, label: 'Home' }],
+    items: [
+      { path: '/', icon: Home, label: 'Home' },
+      { path: '/analytics', icon: BarChart3, label: 'Analytics' },
+    ],
   },
   {
     title: 'Identity & Access',
