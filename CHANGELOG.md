@@ -1,3 +1,17 @@
+# [5.13.0](https://github.com/kaitranntt/ccs/compare/v5.12.1...v5.13.0) (2025-12-09)
+
+
+### Features
+
+* **analytics:** aggregate usage from all CCS auth profiles ([1e11d2e](https://github.com/kaitranntt/ccs/commit/1e11d2e40af20386e5e26677021440f35a7e7217))
+* **analytics:** refactor model color management and fix UI display issues ([f255a20](https://github.com/kaitranntt/ccs/commit/f255a20a931babc45e8a4c9e34d733f8a9eed83f))
+* **cliproxy:** add --add flag and nickname support for multi-account auth ([493492f](https://github.com/kaitranntt/ccs/commit/493492fa7e88746f47240026ac16fae0575ff223))
+* **cliproxy:** add --use and --accounts flags for multi-account switching ([8f6684f](https://github.com/kaitranntt/ccs/commit/8f6684f948b0905d0dd7b558c3d0d4023e042970))
+* **cliproxy:** add multi-account support phases 02-03 ([d868dc4](https://github.com/kaitranntt/ccs/commit/d868dc4c32948db27e4b6073e9a7d28966a54971))
+* **dashboard:** add Environment and OAuth Readiness groups to health page ([96d9fc6](https://github.com/kaitranntt/ccs/commit/96d9fc68e9cf2af8b0b0d237d1ef094269cebb38))
+* **doctor:** add OAuth diagnostics for Windows headless false positives ([92007d7](https://github.com/kaitranntt/ccs/commit/92007d7c0468db969bd481c6517f0b3a851d8433))
+* **ui:** simplify CLIProxy page UX with dedicated Add Account dialog ([8f5c006](https://github.com/kaitranntt/ccs/commit/8f5c006f07f0ad93a7c7009df377b292076af55a))
+
 ## [5.12.1](https://github.com/kaitranntt/ccs/compare/v5.12.0...v5.12.1) (2025-12-09)
 
 
