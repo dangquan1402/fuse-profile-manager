@@ -937,14 +937,18 @@ class Doctor {
         // Regenerate config with new features
         regenerateConfig();
 
-        console.log(`  ${ok('CLIProxy Config'.padEnd(22))}  Upgraded to v${CLIPROXY_CONFIG_VERSION}`);
+        console.log(
+          `  ${ok('CLIProxy Config'.padEnd(22))}  Upgraded to v${CLIPROXY_CONFIG_VERSION}`
+        );
         this.results.addCheck('CLIProxy Config', 'success', undefined, undefined, {
           status: 'OK',
           info: `Upgraded to v${CLIPROXY_CONFIG_VERSION}`,
         });
       } else {
         configSpinner.succeed();
-        console.log(`  ${ok('CLIProxy Config'.padEnd(22))}  cliproxy/config.yaml (v${CLIPROXY_CONFIG_VERSION})`);
+        console.log(
+          `  ${ok('CLIProxy Config'.padEnd(22))}  cliproxy/config.yaml (v${CLIPROXY_CONFIG_VERSION})`
+        );
         this.results.addCheck('CLIProxy Config', 'success', undefined, undefined, {
           status: 'OK',
           info: `cliproxy/config.yaml (v${CLIPROXY_CONFIG_VERSION})`,

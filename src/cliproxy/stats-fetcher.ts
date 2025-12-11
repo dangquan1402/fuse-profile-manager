@@ -94,9 +94,7 @@ export async function fetchClipproxyStats(
  * @param port CLIProxyAPI port (default: 8317)
  * @returns true if proxy is running
  */
-export async function isClipproxyRunning(
-  port: number = CLIPROXY_DEFAULT_PORT
-): Promise<boolean> {
+export async function isClipproxyRunning(port: number = CLIPROXY_DEFAULT_PORT): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 1000); // 1s timeout
