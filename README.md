@@ -4,9 +4,9 @@
 
 ![CCS Logo](docs/assets/ccs-logo-medium.png)
 
-### Switch between multiple Claude accounts, GLM, Kimi, and OAuth-based models (Gemini, Codex, Antigravity) instantly.
-Stop hitting rate limits. Keep working continuously.
-Features a modern React 19 dashboard with real-time updates and unified configuration.
+### The universal AI profile manager for Claude Code.
+Switch between multiple Claude accounts, connect **any Anthropic-compatible API**, and use OAuth providers (Gemini, Codex, Antigravity) instantly.
+Stop hitting rate limits. Keep working continuously with unlimited profiles.
 
 [![License](https://img.shields.io/badge/license-MIT-C15F3C?style=for-the-badge)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=for-the-badge)]()
@@ -71,7 +71,7 @@ irm ccs.kaitran.ca/install | iex
 
 <br>
 
-## Zero-Config OAuth Providers
+## Built-in OAuth Providers (Zero-Config)
 
 **New in v5.0.0**: Instant access to premium models with zero API key setup. Browser-based OAuth authentication.
 
@@ -82,6 +82,9 @@ irm ccs.kaitran.ca/install | iex
 | **Gemini** | gemini-2.5-pro | gemini-2.5-pro | gemini-2.5-flash | `ccs gemini "explain code"` |
 | **Codex** | gpt-5.1-codex-max | gpt-5.1-codex-max-high | gpt-5.1-codex-mini-high | `ccs codex "implement API"` |
 | **Antigravity** | gemini-3-pro-preview | gemini-3-pro-preview | gemini-2.5-flash | `ccs agy "review architecture"` |
+
+> [!TIP]
+> **These are just the built-in providers.** CCS supports **any Anthropic-compatible API** via custom profiles. See [Custom API Profiles](#custom-api-profiles-bring-your-own) below.
 
 **First Run**: Browser opens for authentication. Tokens cached in `~/.ccs/cliproxy/auth/<provider>/`.
 
@@ -216,6 +219,41 @@ $env:CCS_CLAUDE_PATH = "D:\Tools\Claude\claude.exe"   # Windows
 **Warning:** Without Developer Mode, CCS automatically falls back to copying directories (works but no instant sync across profiles).
 
 </details>
+
+<br>
+
+## Custom API Profiles (Bring Your Own)
+
+CCS isn't limited to the built-in providers. **Connect any Anthropic-compatible API** by creating custom profiles:
+
+```bash
+# 1. Create a settings file for your API
+cat > ~/.ccs/my-api.settings.json << 'EOF'
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://your-api.example.com/v1",
+    "ANTHROPIC_AUTH_TOKEN": "your-api-key",
+    "ANTHROPIC_MODEL": "your-model-name"
+  }
+}
+EOF
+
+# 2. Register it in config.json
+# Add to ~/.ccs/config.json under "profiles":
+# "my-api": "~/.ccs/my-api.settings.json"
+
+# 3. Use it!
+ccs my-api "Your prompt here"
+```
+
+**Works with any API that implements the Anthropic messages format:**
+- Self-hosted LLMs (Ollama, LM Studio, vLLM with Anthropic adapter)
+- Alternative AI providers with Anthropic-compatible endpoints
+- Enterprise API gateways and proxies
+- Custom model deployments
+
+> [!TIP]
+> **Already have API keys for GLM or Kimi?** CCS includes pre-configured profiles for these. Just add your API key to `~/.ccs/glm.settings.json` or `~/.ccs/kimi.settings.json`.
 
 <br>
 
@@ -395,6 +433,7 @@ graph LR
 
 ### What CCS Gives You
 
+- **Unlimited Profiles**: Built-in OAuth, API keys, or bring your own Anthropic-compatible endpoints
 - **Zero Context Switching**: Keep your flow state without interruption
 - **Parallel Productivity**: Strategic planning in one terminal, code execution in another
 - **Instant Account Management**: One command switches, no config file editing
@@ -407,12 +446,15 @@ graph LR
 
 ## Architecture
 
-CCS resolves profiles in priority order:
-1. **CLIProxy profiles** (gemini, codex, agy) - OAuth-based, zero config
-2. **CLIProxy variants** (user-defined) - Custom model settings for CLIProxy providers
-3. **Settings-based profiles** (glm, kimi) - API key required
+CCS is a **universal profile manager** that resolves profiles in priority order:
+1. **CLIProxy profiles** (gemini, codex, agy) - Built-in OAuth providers, zero config
+2. **CLIProxy variants** (user-defined) - Custom model configurations for CLIProxy providers
+3. **Settings-based profiles** (glm, kimi, **your-custom-api**) - Any Anthropic-compatible API
 4. **Account-based profiles** (work, personal) - Isolated Claude instances
 5. **Default** - Claude CLI with subscription
+
+> [!NOTE]
+> **Extensibility is core to CCS.** While we provide built-in profiles for common providers, you can connect **any API** that speaks the Anthropic messages format.
 
 ### Profile Types
 

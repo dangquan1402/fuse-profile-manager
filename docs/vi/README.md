@@ -4,10 +4,10 @@
 
 ![CCS Logo](../../docs/assets/ccs-logo-medium.png)
 
-### Một lệnh, không downtime, nhiều tài khoản
+### Trình quản lý profile AI đa năng cho Claude Code
 
-**Chuyển đổi giữa nhiều tài khoản Claude, GLM, và Kimi ngay lập tức.**
-Ngừng hitting rate limits. Làm việc liên tục.
+**Chuyển đổi giữa nhiều tài khoản Claude, kết nối bất kỳ API tương thích Anthropic, và sử dụng OAuth providers (Gemini, Codex, Antigravity) ngay lập tức.**
+Ngừng bị rate limits. Làm việc liên tục với vô số profiles.
 
 <br>
 

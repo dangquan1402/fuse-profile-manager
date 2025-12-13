@@ -4,10 +4,10 @@
 
 ![CCS Logo](../../docs/assets/ccs-logo-medium.png)
 
-### 1コマンド、ダウンタイムなし、複数アカウント
+### Claude Code用ユニバーサルAIプロファイルマネージャー
 
-**複数のClaudeアカウント、GLM、Kimiを瞬時に切り替え。**
-レート制限を回避し、継続的に作業。
+**複数のClaudeアカウント、任意のAnthropic互換API、OAuthプロバイダー（Gemini、Codex、Antigravity）を瞬時に切り替え。**
+レート制限を回避し、無制限のプロファイルで継続的に作業。
 
 <br>
 
