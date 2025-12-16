@@ -220,6 +220,27 @@ export function ensureMcpWebSearch(): boolean {
       }
     }
 
+    // Add custom MCPs from config (BYOM)
+    if (wsConfig.customMcp && wsConfig.customMcp.length > 0) {
+      const servers = config.mcpServers as Record<string, McpServerConfig>;
+      for (const custom of wsConfig.customMcp) {
+        const serverConfig: McpServerConfig = {
+          type: custom.type,
+          _managedBy: 'ccs',
+        };
+        if (custom.type === 'http') {
+          serverConfig.url = custom.url;
+          serverConfig.headers = custom.headers || {};
+        } else {
+          serverConfig.command = custom.command;
+          serverConfig.args = custom.args || [];
+          serverConfig.env = custom.env || {};
+        }
+        servers[custom.name] = serverConfig;
+        addedMcps.push(custom.name);
+      }
+    }
+
     // If nothing was added, return false
     if (addedMcps.length === 0) {
       if (process.env.CCS_DEBUG) {
@@ -483,6 +504,15 @@ export function getWebSearchHookEnv(): Record<string, string> {
   // Set Gemini timeout
   if (wsConfig.gemini.timeout) {
     env.CCS_GEMINI_TIMEOUT = String(wsConfig.gemini.timeout);
+  }
+
+  // Set search mode (sequential or parallel)
+  if (wsConfig.mode === 'parallel') {
+    env.CCS_WEBSEARCH_MODE = 'parallel';
+    // Pass selected providers for parallel mode
+    if (wsConfig.selectedProviders && wsConfig.selectedProviders.length > 0) {
+      env.CCS_WEBSEARCH_PROVIDERS = wsConfig.selectedProviders.join(',');
+    }
   }
 
   return env;

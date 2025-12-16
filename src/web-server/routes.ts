@@ -45,6 +45,7 @@ import {
   loadUnifiedConfig,
   saveUnifiedConfig,
   getConfigFormat,
+  getConfigYamlPath,
 } from '../config/unified-config-loader';
 import {
   needsMigration,
@@ -932,6 +933,23 @@ apiRoutes.get('/config', (_req: Request, res: Response): void => {
 });
 
 /**
+ * GET /api/config/raw - Return raw YAML content for display
+ */
+apiRoutes.get('/config/raw', (_req: Request, res: Response): void => {
+  const yamlPath = getConfigYamlPath();
+  if (!fs.existsSync(yamlPath)) {
+    res.status(404).json({ error: 'Config file not found' });
+    return;
+  }
+  try {
+    const content = fs.readFileSync(yamlPath, 'utf8');
+    res.type('text/plain').send(content);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
  * PUT /api/config - Update unified config
  */
 apiRoutes.put('/config', (req: Request, res: Response): void => {
@@ -1422,10 +1440,19 @@ apiRoutes.get('/websearch', (_req: Request, res: Response): void => {
 
 /**
  * PUT /api/websearch - Update WebSearch configuration
- * Body: { enabled?: boolean, provider?: string, fallback?: boolean }
+ * Body: WebSearchConfig fields (enabled, provider, fallback, gemini, mode, selectedProviders, customMcp)
  */
 apiRoutes.put('/websearch', (req: Request, res: Response): void => {
-  const { enabled, provider, fallback, webSearchPrimeUrl } = req.body as Partial<WebSearchConfig>;
+  const {
+    enabled,
+    provider,
+    fallback,
+    webSearchPrimeUrl,
+    gemini,
+    mode,
+    selectedProviders,
+    customMcp,
+  } = req.body as Partial<WebSearchConfig>;
 
   // Validate enabled
   if (enabled !== undefined && typeof enabled !== 'boolean') {
@@ -1454,6 +1481,27 @@ apiRoutes.put('/websearch', (req: Request, res: Response): void => {
     return;
   }
 
+  // Validate mode if specified
+  const validModes = ['sequential', 'parallel'];
+  if (mode && !validModes.includes(mode)) {
+    res.status(400).json({
+      error: `Invalid mode. Must be one of: ${validModes.join(', ')}`,
+    });
+    return;
+  }
+
+  // Validate selectedProviders if specified
+  if (selectedProviders !== undefined && !Array.isArray(selectedProviders)) {
+    res.status(400).json({ error: 'Invalid value for selectedProviders. Must be an array.' });
+    return;
+  }
+
+  // Validate customMcp if specified
+  if (customMcp !== undefined && !Array.isArray(customMcp)) {
+    res.status(400).json({ error: 'Invalid value for customMcp. Must be an array.' });
+    return;
+  }
+
   try {
     // Load existing config and update websearch section
     const existingConfig = loadUnifiedConfig();
@@ -1462,12 +1510,16 @@ apiRoutes.put('/websearch', (req: Request, res: Response): void => {
       return;
     }
 
-    // Merge updates
+    // Merge updates - preserve all existing fields
     existingConfig.websearch = {
       enabled: enabled ?? existingConfig.websearch?.enabled ?? true,
       provider: provider ?? existingConfig.websearch?.provider ?? 'auto',
       fallback: fallback ?? existingConfig.websearch?.fallback ?? true,
       webSearchPrimeUrl: webSearchPrimeUrl ?? existingConfig.websearch?.webSearchPrimeUrl,
+      gemini: gemini ?? existingConfig.websearch?.gemini ?? { enabled: true, timeout: 55 },
+      mode: mode ?? existingConfig.websearch?.mode ?? 'sequential',
+      selectedProviders: selectedProviders ?? existingConfig.websearch?.selectedProviders ?? [],
+      customMcp: customMcp ?? existingConfig.websearch?.customMcp ?? [],
     };
 
     saveUnifiedConfig(existingConfig);

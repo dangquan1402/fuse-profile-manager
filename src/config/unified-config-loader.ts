@@ -121,6 +121,14 @@ function mergeWithDefaults(partial: Partial<UnifiedConfig>): UnifiedConfig {
       fallback: partial.websearch?.fallback ?? defaults.websearch?.fallback ?? true,
       webSearchPrimeUrl:
         partial.websearch?.webSearchPrimeUrl ?? defaults.websearch?.webSearchPrimeUrl,
+      gemini: {
+        enabled: partial.websearch?.gemini?.enabled ?? defaults.websearch?.gemini?.enabled ?? true,
+        timeout: partial.websearch?.gemini?.timeout ?? defaults.websearch?.gemini?.timeout ?? 55,
+      },
+      mode: partial.websearch?.mode ?? defaults.websearch?.mode ?? 'sequential',
+      selectedProviders:
+        partial.websearch?.selectedProviders ?? defaults.websearch?.selectedProviders ?? [],
+      customMcp: partial.websearch?.customMcp ?? defaults.websearch?.customMcp ?? [],
     },
   };
 }
@@ -329,6 +337,17 @@ export function getWebSearchConfig(): {
     enabled: boolean;
     timeout: number;
   };
+  mode: 'sequential' | 'parallel';
+  selectedProviders: string[];
+  customMcp: Array<{
+    name: string;
+    type: 'http' | 'stdio';
+    url?: string;
+    headers?: Record<string, string>;
+    command?: string;
+    args?: string[];
+    env?: Record<string, string>;
+  }>;
 } {
   const config = loadOrCreateUnifiedConfig();
   return {
@@ -340,5 +359,8 @@ export function getWebSearchConfig(): {
       enabled: config.websearch?.gemini?.enabled ?? true,
       timeout: config.websearch?.gemini?.timeout ?? 55,
     },
+    mode: config.websearch?.mode ?? 'sequential',
+    selectedProviders: config.websearch?.selectedProviders ?? [],
+    customMcp: config.websearch?.customMcp ?? [],
   };
 }

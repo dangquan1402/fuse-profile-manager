@@ -101,6 +101,26 @@ export interface PreferencesConfig {
 }
 
 /**
+ * Custom MCP server configuration for BYOM (Bring Your Own MCP)
+ */
+export interface CustomMcpConfig {
+  /** Unique name for this MCP server */
+  name: string;
+  /** Server type: HTTP endpoint or stdio command */
+  type: 'http' | 'stdio';
+  /** URL for HTTP-based MCP servers */
+  url?: string;
+  /** Headers for HTTP requests */
+  headers?: Record<string, string>;
+  /** Command for stdio-based MCP servers */
+  command?: string;
+  /** Arguments for stdio command */
+  args?: string[];
+  /** Environment variables for the server */
+  env?: Record<string, string>;
+}
+
+/**
  * WebSearch configuration.
  * Controls MCP web-search auto-configuration for third-party profiles.
  */
@@ -124,6 +144,12 @@ export interface WebSearchConfig {
     /** Timeout in seconds for Gemini CLI (default: 55) */
     timeout?: number;
   };
+  /** Search mode: sequential (default) or parallel */
+  mode?: 'sequential' | 'parallel';
+  /** Selected providers for parallel mode */
+  selectedProviders?: string[];
+  /** Custom MCP servers (BYOM - Bring Your Own MCP) */
+  customMcp?: CustomMcpConfig[];
 }
 
 /**
