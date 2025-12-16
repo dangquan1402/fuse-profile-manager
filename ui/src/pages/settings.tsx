@@ -258,7 +258,9 @@ export function SettingsPage() {
 
     // Format 1: { "mcpServers": { "name": { ... } } } - Full Claude/CCS format
     if (obj.mcpServers && typeof obj.mcpServers === 'object') {
-      for (const [name, serverConfig] of Object.entries(obj.mcpServers as Record<string, unknown>)) {
+      for (const [name, serverConfig] of Object.entries(
+        obj.mcpServers as Record<string, unknown>
+      )) {
         const cfg = serverConfig as Record<string, unknown>;
         if (cfg && typeof cfg === 'object') {
           serversToAdd.push({
@@ -378,7 +380,7 @@ export function SettingsPage() {
       setTimeout(() => setSuccess(false), 1500);
       // Silently refresh raw config without loading state
       fetch('/api/config/raw')
-        .then((r) => r.ok ? r.text() : null)
+        .then((r) => (r.ok ? r.text() : null))
         .then((text) => text && setRawConfig(text))
         .catch(() => {});
     } catch (err) {
