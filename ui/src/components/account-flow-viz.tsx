@@ -21,6 +21,21 @@ import {
   RotateCcw,
 } from 'lucide-react';
 
+// Earthy, sophisticated color palette for connection lines - works in both light/dark themes
+const CONNECTION_COLORS = [
+  '#3b3c36', // Charcoal Brown - urban mystery
+  '#568203', // Forest Moss - woodland depth
+  '#8d4557', // Vintage Berry - timeless elegance
+  '#da9100', // Harvest Gold - sun-drenched warmth
+  '#3c6c82', // Blue Slate - cool authority
+  '#c96907', // Burnt Caramel - earthy comfort
+];
+
+/** Get a muted connection color based on index */
+function getConnectionColor(index: number): string {
+  return CONNECTION_COLORS[index % CONNECTION_COLORS.length];
+}
+
 /** Position offset for draggable cards */
 interface DragOffset {
   x: number;
@@ -678,6 +693,8 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
               const isHovered = hoveredAccount === i;
               const isDimmed = hoveredAccount !== null && hoveredAccount !== i;
               const isPulsing = pulsingAccounts.has(account.id);
+              // Use muted connection colors for gentler appearance
+              const connectionColor = getConnectionColor(i);
 
               return (
                 <g key={i}>
@@ -685,9 +702,9 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                   <path
                     d={d}
                     fill="none"
-                    stroke={account.color}
+                    stroke={connectionColor}
                     strokeWidth={strokeWidth}
-                    strokeOpacity={isHovered ? 0.9 : isDimmed ? 0.05 : 0.2}
+                    strokeOpacity={isHovered ? 0.8 : isDimmed ? 0.15 : 0.4}
                     strokeLinecap="round"
                     filter={isHovered ? 'url(#flow-glow)' : undefined}
                     className="transition-all duration-300"
