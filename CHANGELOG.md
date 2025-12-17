@@ -1,3 +1,16 @@
+# [6.1.0](https://github.com/kaitranntt/ccs/compare/v6.0.0...v6.1.0) (2025-12-17)
+
+
+### Bug Fixes
+
+* **cliproxy:** prevent shared proxy termination on multi-session exit ([3629e3e](https://github.com/kaitranntt/ccs/commit/3629e3e2fbe78e890ee8f618437660fbcf7a9901)), closes [#118](https://github.com/kaitranntt/ccs/issues/118)
+
+
+### Features
+
+* **privacy:** add privacy/demo mode for personal info blurring ([6f3fb54](https://github.com/kaitranntt/ccs/commit/6f3fb54cc3104eac8033137a9a9b297895fd93c0))
+* **ui:** add iflow provider logo support ([cefb3a5](https://github.com/kaitranntt/ccs/commit/cefb3a59d2264f64d21a7f051c121011b7e16366))
+
 # [6.0.0](https://github.com/kaitranntt/ccs/compare/v5.20.0...v6.0.0) (2025-12-17)
 
 
