@@ -12,12 +12,13 @@ import { STATUS_COLORS } from '@/lib/utils';
 import { usePrivacy, PRIVACY_BLUR_CLASS } from '@/contexts/privacy-context';
 import {
   ChevronRight,
-  X,
   CheckCircle2,
   XCircle,
-  Clock,
   Activity,
   GripVertical,
+  Eye,
+  EyeOff,
+  RotateCcw,
 } from 'lucide-react';
 
 /** Position offset for draggable cards */
@@ -61,20 +62,41 @@ function generateConnectionEvents(accounts: AccountData[]): ConnectionEvent[] {
   const events: ConnectionEvent[] = [];
 
   accounts.forEach((account) => {
-    // Only show events for accounts that have actual request data
-    const hasActivity = account.successCount > 0 || account.failureCount > 0;
-    if (!hasActivity) return;
-
-    // Create a single consolidated event per account showing its current status
     const lastUsed = account.lastUsedAt ? new Date(account.lastUsedAt) : new Date();
-    const hasFailures = account.failureCount > 0;
 
-    events.push({
-      id: `${account.id}-status`,
-      timestamp: lastUsed,
-      accountEmail: account.email,
-      status: hasFailures && account.failureCount > account.successCount ? 'failed' : 'success',
-    });
+    // Helper to add events
+    const addEvents = (count: number, status: 'success' | 'failed') => {
+      for (let i = 0; i < count; i++) {
+        // Simulate timestamps:
+        // - Distribute events over a 24-hour window relative to lastUsed
+        // - Add random jitter so events from different accounts mix
+        const timeOffset = Math.floor(Math.random() * 24 * 60 * 60 * 1000 * (i / (count || 1)));
+        const timestamp = new Date(lastUsed.getTime() - timeOffset);
+
+        // Add small random jitter (±5 mins) to avoid exact overlaps
+        const jitter = Math.floor((Math.random() - 0.5) * 10 * 60 * 1000);
+        timestamp.setTime(timestamp.getTime() + jitter);
+
+        // Sanity check: don't go into the future relative to "now"
+        const now = new Date();
+        if (timestamp > now) timestamp.setTime(now.getTime());
+
+        events.push({
+          id: `${account.id}-${status}-${i}`,
+          timestamp,
+          accountEmail: account.email,
+          status,
+          // Simulate realistic latency (success: 50-200ms, failed: 200-5000ms)
+          latencyMs:
+            status === 'success'
+              ? 50 + Math.floor(Math.random() * 150)
+              : 200 + Math.floor(Math.random() * 4800),
+        });
+      }
+    };
+
+    addEvents(account.successCount, 'success');
+    addEvents(account.failureCount, 'failed');
   });
 
   // Sort by timestamp descending (most recent first)
@@ -134,7 +156,7 @@ function ConnectionTimeline({
 
           {/* Events */}
           <div className="space-y-3">
-            {events.slice(0, 8).map((event) => {
+            {events.map((event) => {
               const statusColor =
                 event.status === 'success'
                   ? STATUS_COLORS.success
@@ -186,15 +208,6 @@ function ConnectionTimeline({
               );
             })}
           </div>
-
-          {/* Show more indicator */}
-          {events.length > 8 && (
-            <div className="mt-3 pt-2 border-t border-border/30 dark:border-white/[0.05]">
-              <span className="text-[9px] text-muted-foreground font-mono">
-                +{events.length - 8} more events
-              </span>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -206,27 +219,93 @@ function cleanEmail(email: string): string {
   return email.replace(/@(gmail|yahoo|hotmail|outlook|icloud)\.com$/i, '');
 }
 
-function getTimeAgo(dateStr?: string): string {
-  if (!dateStr) return 'never';
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return 'unknown';
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  if (diffMs < 0) return 'just now';
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
+/** Premium compact stats visualization for account cards */
+function AccountCardStats({
+  success,
+  failure,
+  showDetails,
+}: {
+  success: number;
+  failure: number;
+  showDetails: boolean;
+}) {
+  const total = success + failure;
+  const successRate = total > 0 ? (success / total) * 100 : 100;
+
+  return (
+    <div className="mt-2 space-y-2">
+      {/* Primary Row: Success Rate & Total */}
+      <div className="flex items-end justify-between px-0.5">
+        <div className="flex flex-col">
+          <span className="text-[8px] text-muted-foreground/70 uppercase font-bold tracking-tight">
+            Success Rate
+          </span>
+          <span
+            className={cn(
+              'text-sm font-mono font-bold leading-none mt-0.5',
+              successRate === 100
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : successRate >= 90
+                  ? 'text-amber-500'
+                  : 'text-red-500'
+            )}
+          >
+            {Math.round(successRate)}%
+          </span>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="text-[8px] text-muted-foreground/70 uppercase font-bold tracking-tight">
+            Volume
+          </span>
+          <span className="text-xs font-mono font-medium text-foreground/80 leading-none mt-0.5">
+            {total.toLocaleString()}
+          </span>
+        </div>
+      </div>
+
+      {/* Detailed Stats - Collapsible */}
+      <div
+        className={cn(
+          'grid grid-cols-2 gap-2 overflow-hidden transition-all duration-300 ease-in-out',
+          showDetails ? 'max-h-20 opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'
+        )}
+      >
+        <div className="flex items-center gap-1.5 px-1.5 py-1 rounded-md bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10">
+          <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+            {success}
+          </span>
+        </div>
+        <div
+          className={cn(
+            'flex items-center gap-1.5 px-1.5 py-1 rounded-md border',
+            failure > 0
+              ? 'bg-red-500/5 dark:bg-red-500/10 border-red-500/20'
+              : 'bg-muted/10 border-transparent opacity-40'
+          )}
+        >
+          <XCircle
+            className={cn('w-2.5 h-2.5', failure > 0 ? 'text-red-500' : 'text-muted-foreground')}
+          />
+          <span
+            className={cn(
+              'text-[10px] font-mono font-bold',
+              failure > 0 ? 'text-red-500' : 'text-muted-foreground'
+            )}
+          >
+            {failure}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoveredAccount, setHoveredAccount] = useState<number | null>(null);
-  const [selectedAccount, setSelectedAccount] = useState<AccountData | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
   const [paths, setPaths] = useState<string[]>([]);
 
   // Privacy mode for demo purposes
@@ -402,6 +481,21 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
     return () => clearTimeout(timer);
   }, [dragOffsets, calculatePaths]);
 
+  // Animate paths when toggling details to match CSS transition
+  useEffect(() => {
+    const startTime = Date.now();
+    const duration = 350; // Match transition duration (300ms) + buffer
+
+    const animate = () => {
+      calculatePaths();
+      if (Date.now() - startTime < duration) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [showDetails, calculatePaths]);
+
   const providerColor = PROVIDER_COLORS[providerData.provider.toLowerCase()] || '#6b7280';
 
   // Split accounts into zones based on count (top/left/right/bottom)
@@ -444,6 +538,21 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
   const hasRightAccounts = rightAccounts.length > 0;
   const hasTopAccounts = topAccounts.length > 0;
   const hasBottomAccounts = bottomAccounts.length > 0;
+
+  // Container expansion based on drag offsets (only vertical to avoid squeezing horizontal content)
+  const containerExpansion = useMemo(() => {
+    let minY = 0,
+      maxY = 0;
+    Object.values(dragOffsets).forEach((offset) => {
+      minY = Math.min(minY, offset.y);
+      maxY = Math.max(maxY, offset.y);
+    });
+    return {
+      paddingTop: Math.max(0, -minY),
+      paddingBottom: Math.max(0, maxY),
+      extraHeight: Math.max(0, Math.abs(minY), Math.abs(maxY)) * 2,
+    };
+  }, [dragOffsets]);
 
   // Dynamic provider card size based on account count
   const providerSize = useMemo(() => {
@@ -501,21 +610,56 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
 
   return (
     <div className="flex flex-col" ref={containerRef}>
-      {/* Back button */}
-      {onBack && (
-        <button
-          onClick={onBack}
-          className="self-start flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ChevronRight className="w-3 h-3 rotate-180" />
-          <span>Back to providers</span>
-        </button>
-      )}
+      {/* Header: Back button + Reset Layout */}
+      <div className="flex items-center justify-between px-3 py-1.5">
+        {onBack ? (
+          <button
+            onClick={onBack}
+            className="group flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-all duration-200 px-3 py-1.5 rounded-md hover:bg-muted/50 border border-transparent hover:border-border/50"
+          >
+            <ChevronRight className="w-3.5 h-3.5 rotate-180 transition-transform group-hover:-translate-x-0.5" />
+            <span>Back to providers</span>
+          </button>
+        ) : (
+          <div />
+        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            className={cn(
+              'flex items-center gap-1.5 text-xs font-medium transition-all duration-200 px-3 py-1.5 rounded-md border shadow-sm',
+              showDetails
+                ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'
+                : 'bg-background text-muted-foreground hover:text-foreground border-border/60 hover:border-border hover:bg-muted/50'
+            )}
+          >
+            {showDetails ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            <span>{showDetails ? 'Hide Details' : 'Show Details'}</span>
+          </button>
+
+          {Object.keys(dragOffsets).length > 0 && (
+            <button
+              onClick={resetPositions}
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-all duration-200 px-3 py-1.5 rounded-md border border-border/60 hover:border-border bg-background hover:bg-muted/50 shadow-sm"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset layout</span>
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Main visualization area - Multi-zone layout */}
-      <div className="min-h-[320px] flex gap-4 px-4 py-6 self-stretch items-stretch">
+      <div className="min-h-[320px] flex gap-4 px-4 py-6 self-stretch items-stretch transition-all duration-200">
         {/* Flow visualization section */}
-        <div className="relative flex-1 flex flex-col items-stretch justify-center px-4">
+        <div
+          className="relative flex-1 flex flex-col items-stretch justify-center px-4"
+          style={{
+            paddingTop: `${24 + containerExpansion.paddingTop}px`,
+            paddingBottom: `${24 + containerExpansion.paddingBottom}px`,
+            minHeight: `${320 + containerExpansion.extraHeight}px`,
+          }}
+        >
           {/* SVG Canvas (Background) */}
           <svg
             ref={svgRef}
@@ -584,7 +728,6 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
             <div className="flex flex-row gap-3 z-10 justify-center flex-wrap mb-8">
               {topAccounts.map((account) => {
                 const originalIndex = accounts.findIndex((a) => a.id === account.id);
-                const total = account.successCount + account.failureCount;
                 const isHovered = hoveredAccount === originalIndex;
                 const isDragging = draggingId === account.id;
                 const offset = getOffset(account.id);
@@ -594,10 +737,6 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                     key={account.id}
                     data-account-index={originalIndex}
                     data-zone="top"
-                    onClick={() =>
-                      !didDragRef.current &&
-                      setSelectedAccount((prev) => (prev?.id === account.id ? null : account))
-                    }
                     onMouseEnter={() => setHoveredAccount(originalIndex)}
                     onMouseLeave={() => setHoveredAccount(null)}
                     onPointerDown={(e) => handlePointerDown(account.id, e)}
@@ -617,8 +756,8 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                       transform: `translate(${offset.x}px, ${offset.y}px)${isDragging ? ' scale(1.05)' : ''}`,
                     }}
                   >
-                    <GripVertical className="absolute top-1 left-1/2 -translate-x-1/2 w-3 h-3 text-muted-foreground/40" />
-                    <div className="flex justify-between items-start mb-1 mt-2">
+                    <GripVertical className="absolute top-2 right-2 w-4 h-4 text-muted-foreground/40" />
+                    <div className="flex justify-between items-start mb-1 mr-4">
                       <span
                         className={cn(
                           'text-xs font-semibold text-foreground tracking-tight truncate max-w-[100px]',
@@ -627,24 +766,12 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                       >
                         {cleanEmail(account.email)}
                       </span>
-                      <ChevronRight
-                        className={cn(
-                          'w-3.5 h-3.5 text-muted-foreground transition-opacity rotate-90',
-                          isHovered ? 'opacity-100' : 'opacity-0'
-                        )}
-                      />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        {total.toLocaleString()} reqs
-                      </span>
-                      <div className="flex gap-1">
-                        {account.failureCount > 0 && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-red-500/80" />
-                        )}
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
-                      </div>
-                    </div>
+                    <AccountCardStats
+                      success={account.successCount}
+                      failure={account.failureCount}
+                      showDetails={showDetails}
+                    />
                     {/* Connector Dot - Bottom side */}
                     <div
                       className={cn(
@@ -665,7 +792,6 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
             <div className="flex flex-col gap-3 z-10 w-48 justify-center flex-shrink-0">
               {leftAccounts.map((account) => {
                 const originalIndex = accounts.findIndex((a) => a.id === account.id);
-                const total = account.successCount + account.failureCount;
                 const isHovered = hoveredAccount === originalIndex;
                 const isDragging = draggingId === account.id;
                 const offset = getOffset(account.id);
@@ -675,10 +801,6 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                     key={account.id}
                     data-account-index={originalIndex}
                     data-zone="left"
-                    onClick={() =>
-                      !didDragRef.current &&
-                      setSelectedAccount((prev) => (prev?.id === account.id ? null : account))
-                    }
                     onMouseEnter={() => setHoveredAccount(originalIndex)}
                     onMouseLeave={() => setHoveredAccount(null)}
                     onPointerDown={(e) => handlePointerDown(account.id, e)}
@@ -699,8 +821,8 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                     }}
                   >
                     {/* Drag handle indicator */}
-                    <GripVertical className="absolute top-1/2 left-1 -translate-y-1/2 w-3 h-3 text-muted-foreground/40" />
-                    <div className="flex justify-between items-start mb-1 ml-3">
+                    <GripVertical className="absolute top-2 right-2 w-4 h-4 text-muted-foreground/40" />
+                    <div className="flex justify-between items-start mb-1 mr-4">
                       <span
                         className={cn(
                           'text-xs font-semibold text-foreground tracking-tight truncate max-w-[100px]',
@@ -709,24 +831,12 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                       >
                         {cleanEmail(account.email)}
                       </span>
-                      <ChevronRight
-                        className={cn(
-                          'w-3.5 h-3.5 text-muted-foreground transition-opacity',
-                          isHovered ? 'opacity-100' : 'opacity-0'
-                        )}
-                      />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        {total.toLocaleString()} reqs
-                      </span>
-                      <div className="flex gap-1">
-                        {account.failureCount > 0 && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-red-500/80" />
-                        )}
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
-                      </div>
-                    </div>
+                    <AccountCardStats
+                      success={account.successCount}
+                      failure={account.failureCount}
+                      showDetails={showDetails}
+                    />
                     {/* Connector Dot - Right side */}
                     <div
                       className={cn(
@@ -867,7 +977,6 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
               <div className="flex flex-col gap-3 z-10 w-48 justify-center flex-shrink-0">
                 {rightAccounts.map((account) => {
                   const originalIndex = accounts.findIndex((a) => a.id === account.id);
-                  const total = account.successCount + account.failureCount;
                   const isHovered = hoveredAccount === originalIndex;
                   const isDragging = draggingId === account.id;
                   const offset = getOffset(account.id);
@@ -877,10 +986,6 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                       key={account.id}
                       data-account-index={originalIndex}
                       data-zone="right"
-                      onClick={() =>
-                        !didDragRef.current &&
-                        setSelectedAccount((prev) => (prev?.id === account.id ? null : account))
-                      }
                       onMouseEnter={() => setHoveredAccount(originalIndex)}
                       onMouseLeave={() => setHoveredAccount(null)}
                       onPointerDown={(e) => handlePointerDown(account.id, e)}
@@ -901,14 +1006,8 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                       }}
                     >
                       {/* Drag handle indicator */}
-                      <GripVertical className="absolute top-1/2 right-1 -translate-y-1/2 w-3 h-3 text-muted-foreground/40" />
-                      <div className="flex justify-between items-start mb-1 mr-3">
-                        <ChevronRight
-                          className={cn(
-                            'w-3.5 h-3.5 text-muted-foreground transition-opacity rotate-180',
-                            isHovered ? 'opacity-100' : 'opacity-0'
-                          )}
-                        />
+                      <GripVertical className="absolute top-2 right-2 w-4 h-4 text-muted-foreground/40" />
+                      <div className="flex justify-between items-start mb-1 mr-4">
                         <span
                           className={cn(
                             'text-xs font-semibold text-foreground tracking-tight truncate max-w-[100px]',
@@ -918,17 +1017,11 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                           {cleanEmail(account.email)}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex gap-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
-                          {account.failureCount > 0 && (
-                            <div className="w-1.5 h-1.5 rounded-full bg-red-500/80" />
-                          )}
-                        </div>
-                        <span className="text-[10px] text-muted-foreground font-mono">
-                          {total.toLocaleString()} reqs
-                        </span>
-                      </div>
+                      <AccountCardStats
+                        success={account.successCount}
+                        failure={account.failureCount}
+                        showDetails={showDetails}
+                      />
                       {/* Connector Dot - Left side */}
                       <div
                         className={cn(
@@ -949,7 +1042,6 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
             <div className="flex flex-row gap-3 z-10 justify-center flex-wrap mt-8">
               {bottomAccounts.map((account) => {
                 const originalIndex = accounts.findIndex((a) => a.id === account.id);
-                const total = account.successCount + account.failureCount;
                 const isHovered = hoveredAccount === originalIndex;
                 const isDragging = draggingId === account.id;
                 const offset = getOffset(account.id);
@@ -959,10 +1051,6 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                     key={account.id}
                     data-account-index={originalIndex}
                     data-zone="bottom"
-                    onClick={() =>
-                      !didDragRef.current &&
-                      setSelectedAccount((prev) => (prev?.id === account.id ? null : account))
-                    }
                     onMouseEnter={() => setHoveredAccount(originalIndex)}
                     onMouseLeave={() => setHoveredAccount(null)}
                     onPointerDown={(e) => handlePointerDown(account.id, e)}
@@ -970,7 +1058,7 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerUp}
                     className={cn(
-                      'group/card relative rounded-lg p-3 pt-6 w-44 cursor-grab transition-shadow duration-200',
+                      'group/card relative rounded-lg p-3 w-44 cursor-grab transition-shadow duration-200',
                       'bg-muted/30 dark:bg-zinc-900/60 backdrop-blur-sm',
                       'border border-border/50 dark:border-white/[0.08]',
                       'border-b-2 select-none touch-none',
@@ -990,8 +1078,8 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                         isHovered && 'bg-foreground dark:bg-white border-transparent'
                       )}
                     />
-                    <GripVertical className="absolute bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 text-muted-foreground/40" />
-                    <div className="flex justify-between items-start mb-1">
+                    <GripVertical className="absolute top-2 right-2 w-4 h-4 text-muted-foreground/40" />
+                    <div className="flex justify-between items-start mb-1 mr-4">
                       <span
                         className={cn(
                           'text-xs font-semibold text-foreground tracking-tight truncate max-w-[100px]',
@@ -1000,24 +1088,12 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
                       >
                         {cleanEmail(account.email)}
                       </span>
-                      <ChevronRight
-                        className={cn(
-                          'w-3.5 h-3.5 text-muted-foreground transition-opacity -rotate-90',
-                          isHovered ? 'opacity-100' : 'opacity-0'
-                        )}
-                      />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        {total.toLocaleString()} reqs
-                      </span>
-                      <div className="flex gap-1">
-                        {account.failureCount > 0 && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-red-500/80" />
-                        )}
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
-                      </div>
-                    </div>
+                    <AccountCardStats
+                      success={account.successCount}
+                      failure={account.failureCount}
+                      showDetails={showDetails}
+                    />
                   </div>
                 );
               })}
@@ -1026,94 +1102,9 @@ export function AccountFlowViz({ providerData, onBack }: AccountFlowVizProps) {
         </div>
 
         {/* Right Section: Connection Timeline - Fixed compact width */}
-        <div className="w-56 flex-shrink-0 self-stretch">
-          <ConnectionTimeline events={connectionEvents} privacyMode={privacyMode} />
-        </div>
-      </div>
-
-      {/* Reset Layout Button */}
-      {Object.keys(dragOffsets).length > 0 && (
-        <div className="flex justify-center pb-2">
-          <button
-            onClick={resetPositions}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1 rounded-md hover:bg-muted/50"
-          >
-            Reset layout
-          </button>
-        </div>
-      )}
-
-      {/* Detail Panel - slides in from bottom, pushes content */}
-      <div
-        className={cn(
-          'overflow-hidden transition-all duration-300 ease-out',
-          selectedAccount ? 'max-h-[200px] opacity-100' : 'max-h-0 opacity-0'
-        )}
-      >
-        <div className={cn('bg-card dark:bg-zinc-950 border-t border-border', 'p-4')}>
-          <div className="relative">
-            <button
-              onClick={() => setSelectedAccount(null)}
-              className="absolute top-0 right-0 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            {selectedAccount && (
-              <div className="grid grid-cols-4 gap-4">
-                {/* Account Info */}
-                <div className="border-r border-border pr-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: selectedAccount.color }}
-                    />
-                    <span
-                      className={cn(
-                        'text-sm font-semibold text-foreground tracking-tight truncate',
-                        privacyMode && PRIVACY_BLUR_CLASS
-                      )}
-                    >
-                      {cleanEmail(selectedAccount.email)}
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                    Source Account
-                  </div>
-                </div>
-
-                {/* Stats */}
-                <div className="bg-muted/30 dark:bg-zinc-900/50 rounded-lg p-3 border border-border">
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-700 dark:text-emerald-500" />
-                    <span>SUCCESSFUL</span>
-                  </div>
-                  <div className="text-xl font-mono text-emerald-700 dark:text-emerald-500 tracking-tighter">
-                    {selectedAccount.successCount.toLocaleString()}
-                  </div>
-                </div>
-
-                <div className="bg-muted/30 dark:bg-zinc-900/50 rounded-lg p-3 border border-border">
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1">
-                    <XCircle className="w-3 h-3 text-red-700 dark:text-red-500" />
-                    <span>FAILED</span>
-                  </div>
-                  <div className="text-xl font-mono text-red-700 dark:text-red-500 tracking-tighter">
-                    {selectedAccount.failureCount.toLocaleString()}
-                  </div>
-                </div>
-
-                <div className="bg-muted/30 dark:bg-zinc-900/50 rounded-lg p-3 border border-border">
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1">
-                    <Clock className="w-3 h-3" />
-                    <span>LAST SYNC</span>
-                  </div>
-                  <div className="text-sm font-mono text-foreground mt-1">
-                    {getTimeAgo(selectedAccount.lastUsedAt)}
-                  </div>
-                </div>
-              </div>
-            )}
+        <div className="w-56 flex-shrink-0 self-stretch relative">
+          <div className="absolute inset-0">
+            <ConnectionTimeline events={connectionEvents} privacyMode={privacyMode} />
           </div>
         </div>
       </div>
