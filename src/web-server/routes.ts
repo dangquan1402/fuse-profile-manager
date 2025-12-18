@@ -1592,3 +1592,167 @@ apiRoutes.get('/websearch/status', (_req: Request, res: Response): void => {
     res.status(500).json({ error: (error as Error).message });
   }
 });
+
+// ============================================================================
+// COPILOT API ROUTES
+// GitHub Copilot integration via copilot-api proxy
+// ============================================================================
+
+import {
+  checkAuthStatus as checkCopilotAuth,
+  startAuthFlow as startCopilotAuth,
+  getCopilotStatus,
+  startDaemon as startCopilotDaemon,
+  stopDaemon as stopCopilotDaemon,
+  getAvailableModels as getCopilotModels,
+  isCopilotApiInstalled,
+} from '../copilot';
+import { DEFAULT_COPILOT_CONFIG } from '../config/unified-config-types';
+import { loadOrCreateUnifiedConfig } from '../config/unified-config-loader';
+
+/**
+ * GET /api/copilot/status - Get Copilot status (auth + daemon)
+ */
+apiRoutes.get('/copilot/status', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const config = loadOrCreateUnifiedConfig();
+    const copilotConfig = config.copilot ?? DEFAULT_COPILOT_CONFIG;
+    const status = await getCopilotStatus(copilotConfig);
+    const installed = isCopilotApiInstalled();
+
+    res.json({
+      enabled: copilotConfig.enabled,
+      installed,
+      authenticated: status.auth.authenticated,
+      daemon_running: status.daemon.running,
+      port: copilotConfig.port,
+      model: copilotConfig.model,
+      account_type: copilotConfig.account_type,
+      auto_start: copilotConfig.auto_start,
+      rate_limit: copilotConfig.rate_limit,
+      wait_on_limit: copilotConfig.wait_on_limit,
+    });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/copilot/config - Get Copilot configuration
+ */
+apiRoutes.get('/copilot/config', (_req: Request, res: Response): void => {
+  try {
+    const config = loadOrCreateUnifiedConfig();
+    const copilotConfig = config.copilot ?? DEFAULT_COPILOT_CONFIG;
+    res.json(copilotConfig);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * PUT /api/copilot/config - Update Copilot configuration
+ */
+apiRoutes.put('/copilot/config', (req: Request, res: Response): void => {
+  try {
+    const updates = req.body;
+    const config = loadOrCreateUnifiedConfig();
+
+    // Merge updates with existing config
+    config.copilot = {
+      enabled: updates.enabled ?? config.copilot?.enabled ?? DEFAULT_COPILOT_CONFIG.enabled,
+      auto_start:
+        updates.auto_start ?? config.copilot?.auto_start ?? DEFAULT_COPILOT_CONFIG.auto_start,
+      port: updates.port ?? config.copilot?.port ?? DEFAULT_COPILOT_CONFIG.port,
+      account_type:
+        updates.account_type ?? config.copilot?.account_type ?? DEFAULT_COPILOT_CONFIG.account_type,
+      rate_limit:
+        updates.rate_limit !== undefined
+          ? updates.rate_limit
+          : (config.copilot?.rate_limit ?? DEFAULT_COPILOT_CONFIG.rate_limit),
+      wait_on_limit:
+        updates.wait_on_limit ??
+        config.copilot?.wait_on_limit ??
+        DEFAULT_COPILOT_CONFIG.wait_on_limit,
+      model: updates.model ?? config.copilot?.model ?? DEFAULT_COPILOT_CONFIG.model,
+    };
+
+    saveUnifiedConfig(config);
+    res.json({ success: true, copilot: config.copilot });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/copilot/auth/start - Start GitHub OAuth flow
+ * Note: This is a long-running operation that opens browser
+ */
+apiRoutes.post('/copilot/auth/start', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await startCopilotAuth();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/copilot/auth/status - Get auth status only
+ */
+apiRoutes.get('/copilot/auth/status', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const status = await checkCopilotAuth();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/copilot/models - Get available models
+ */
+apiRoutes.get('/copilot/models', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const config = loadOrCreateUnifiedConfig();
+    const port = config.copilot?.port ?? DEFAULT_COPILOT_CONFIG.port;
+    const currentModel = config.copilot?.model ?? DEFAULT_COPILOT_CONFIG.model;
+    const models = await getCopilotModels(port);
+
+    // Mark current model
+    const modelsWithCurrent = models.map((m) => ({
+      ...m,
+      isCurrent: m.id === currentModel,
+    }));
+
+    res.json({ models: modelsWithCurrent, current: currentModel });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/copilot/daemon/start - Start copilot-api daemon
+ */
+apiRoutes.post('/copilot/daemon/start', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const config = loadOrCreateUnifiedConfig();
+    const copilotConfig = config.copilot ?? DEFAULT_COPILOT_CONFIG;
+    const result = await startCopilotDaemon(copilotConfig);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/copilot/daemon/stop - Stop copilot-api daemon
+ */
+apiRoutes.post('/copilot/daemon/stop', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await stopCopilotDaemon();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
