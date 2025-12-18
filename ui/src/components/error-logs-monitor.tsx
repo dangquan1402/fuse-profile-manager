@@ -79,11 +79,15 @@ function ErrorLogContent({ name }: { name: string }) {
 }
 
 export function ErrorLogsMonitor() {
-  const { data: status } = useCliproxyStatus();
-  const { data: logs, isLoading, error } = useCliproxyErrorLogs(status?.running);
+  const { data: status, isLoading: isStatusLoading } = useCliproxyStatus();
+  const { data: logs, isLoading, error } = useCliproxyErrorLogs(status?.running ?? false);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
 
-  // Don't show if proxy not running or loading
+  // Don't show while status is loading or if proxy not running
+  if (isStatusLoading) {
+    return null;
+  }
+
   if (!status?.running) {
     return null;
   }
