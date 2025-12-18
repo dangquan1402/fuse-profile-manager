@@ -19,6 +19,8 @@ import {
   Key,
   Server,
   Cpu,
+  Download,
+  Loader2,
 } from 'lucide-react';
 import { useCopilot } from '@/hooks/use-copilot';
 import { CopilotConfigForm } from '@/components/copilot/copilot-config-form';
@@ -108,6 +110,8 @@ export function CopilotPage() {
     isStartingDaemon,
     stopDaemon,
     isStoppingDaemon,
+    install,
+    isInstalling,
   } = useCopilot();
 
   return (
@@ -160,8 +164,34 @@ export function CopilotPage() {
                   icon={Server}
                   label="copilot-api"
                   status={status?.installed ?? false}
-                  statusText={status?.installed ? 'Installed' : 'Missing'}
+                  statusText={
+                    status?.installed
+                      ? status.version
+                        ? `v${status.version}`
+                        : 'Installed'
+                      : 'Missing'
+                  }
                 />
+                {!status?.installed && (
+                  <Button
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => install(undefined)}
+                    disabled={isInstalling}
+                  >
+                    {isInstalling ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                        Installing...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3.5 h-3.5 mr-1.5" />
+                        Install copilot-api
+                      </>
+                    )}
+                  </Button>
+                )}
               </StatusSection>
 
               {/* Authentication */}
