@@ -1,3 +1,39 @@
+# [6.5.0](https://github.com/kaitranntt/ccs/compare/v6.4.0...v6.5.0) (2025-12-18)
+
+
+### Bug Fixes
+
+* **cli:** allow ccs copilot as profile by routing only known subcommands ([2c6dfe7](https://github.com/kaitranntt/ccs/commit/2c6dfe746b19dcbc43492dc8a03870b18a0b03f6))
+* **cli:** route 'ccs copilot' without subcommand to help ([671a9e7](https://github.com/kaitranntt/ccs/commit/671a9e76fb1dc4b58099e82d94f63fd346b52146))
+* **copilot:** use gpt-4.1 as default model and 127.0.0.1 for local connections ([ec6face](https://github.com/kaitranntt/ccs/commit/ec6face8db78e9c5cad4f91dcfd39e08665e1415))
+* **copilot:** use token file check for instant auth status ([4783632](https://github.com/kaitranntt/ccs/commit/47836329580711bc551ebc52e20136a38bf15320))
+* **copilot:** widen sidebar and balance split-view layout ([63bdc3a](https://github.com/kaitranntt/ccs/commit/63bdc3ae3990472d91c190bd29ee95c5181e4d12))
+* **ui:** add install button to copilot page sidebar ([3865747](https://github.com/kaitranntt/ccs/commit/386574715470b8ff10e8d0ffae9231e001810e99))
+* **ui:** constrain copilot config left panel width to 540px ([da5dc31](https://github.com/kaitranntt/ccs/commit/da5dc31ec4e94d98c17aa750f23e079145ac040c))
+* **ui:** handle 404 errors in profile settings fetch ([60c01c7](https://github.com/kaitranntt/ccs/commit/60c01c7e60f850a28cb995e92aad21dbb09a1acf))
+* **ui:** improve copilot sidebar logical order and remove redundancy ([f9b89de](https://github.com/kaitranntt/ccs/commit/f9b89dee12acdec5bf2b53e04eb60708bfee8340))
+
+
+### Features
+
+* **api:** add copilot install and info endpoints ([fee241d](https://github.com/kaitranntt/ccs/commit/fee241d00be4a573e04011dd84712f90ed2d4a1f))
+* **api:** add copilot REST API endpoints ([c84db38](https://github.com/kaitranntt/ccs/commit/c84db38f6a16598955334fc02e0ccbe50187655f))
+* **auth:** add copilot profile detection ([e5a1f60](https://github.com/kaitranntt/ccs/commit/e5a1f60bb6f97dba5ccd021087941ddf733292d5))
+* **cli:** add copilot CLI commands ([d25db1f](https://github.com/kaitranntt/ccs/commit/d25db1fce10ea9c37b949a8c3c39115f357812d8))
+* **config:** add copilot configuration types and loader ([b87aeae](https://github.com/kaitranntt/ccs/commit/b87aeaeb01800b11640b14fafa36412d82d0f522))
+* **copilot:** add complete model catalog with plan tiers ([7653cab](https://github.com/kaitranntt/ccs/commit/7653caba710f847ff4c25fcc5b68f1b0381dd2d2))
+* **copilot:** add copilot manager module ([3b8a85c](https://github.com/kaitranntt/ccs/commit/3b8a85c9ef1d4a227b8ea77f9c892ba547e92eed))
+* **copilot:** add model tier mapping support ([d21908a](https://github.com/kaitranntt/ccs/commit/d21908ab63aca6e96f14f6e0c78eb882de1177b9))
+* **copilot:** add raw settings API and model mapping routes ([a3e2153](https://github.com/kaitranntt/ccs/commit/a3e2153498ac8a1a9b84319f6b0835fa8f085b3d))
+* **copilot:** add raw settings support to useCopilot hook ([882792a](https://github.com/kaitranntt/ccs/commit/882792a4fbdd48b81840b4bb3f093831fe60de76))
+* **copilot:** add self-managed package manager for copilot-api ([ecdad1d](https://github.com/kaitranntt/ccs/commit/ecdad1d6d0c21f47547573f666d68bb6d1164437))
+* **copilot:** redesign config form to match CLIProxy pattern ([7886259](https://github.com/kaitranntt/ccs/commit/7886259c363914224b6717ff4d4a74104141d696))
+* **ui:** add copilot dashboard page ([6b04532](https://github.com/kaitranntt/ccs/commit/6b04532f419622f9bfcd99d9e499445310f850d8))
+* **ui:** add copilot-api install button and version display ([f813ad0](https://github.com/kaitranntt/ccs/commit/f813ad06f61ad6146698d82c4aed4b3a8e90dc5d))
+* **ui:** display plan tiers and presets in copilot model selector ([87c2acc](https://github.com/kaitranntt/ccs/commit/87c2acc416c35b15377e4bce2ee45bc6d20d761a))
+* **ui:** expose auth result with device code in hook ([5f0fde9](https://github.com/kaitranntt/ccs/commit/5f0fde9a612e7ec1ea13dd5fc807d033bf215fb8))
+* **update:** add automatic update check on startup ([8a0ad53](https://github.com/kaitranntt/ccs/commit/8a0ad5308262ba14fb0fe23ff8a87f3c5ecaa139))
+
 # [6.4.0](https://github.com/kaitranntt/ccs/compare/v6.3.1...v6.4.0) (2025-12-18)
 
 
