@@ -40,6 +40,8 @@ import {
 } from '../cliproxy/account-manager';
 import type { CLIProxyProvider } from '../cliproxy/types';
 import { getClaudeEnvVars } from '../cliproxy/config-generator';
+import { getProxyStatus as getProxyProcessStatus } from '../cliproxy/session-tracker';
+import { ensureCliproxyService } from '../cliproxy/service-manager';
 // Unified config imports
 import {
   hasUnifiedConfig,
@@ -1285,6 +1287,34 @@ apiRoutes.get('/cliproxy/status', async (_req: Request, res: Response): Promise<
   try {
     const running = await isCliproxyRunning();
     res.json({ running });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/cliproxy/proxy-status - Get detailed proxy process status
+ * Returns: { running, port?, pid?, sessionCount?, startedAt? }
+ * Uses session tracker for accurate multi-session status
+ */
+apiRoutes.get('/cliproxy/proxy-status', (_req: Request, res: Response): void => {
+  try {
+    const status = getProxyProcessStatus();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/cliproxy/proxy-start - Start the CLIProxy service
+ * Returns: { started, alreadyRunning, port, error? }
+ * Starts proxy in background if not already running
+ */
+apiRoutes.post('/cliproxy/proxy-start', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await ensureCliproxyService();
+    res.json(result);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
