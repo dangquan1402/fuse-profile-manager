@@ -378,6 +378,15 @@ apiRoutes.post('/cliproxy', (req: Request, res: Response): void => {
     return;
   }
 
+  // Reject reserved provider names as variant names
+  const reservedNames = ['gemini', 'codex', 'agy', 'qwen', 'iflow'];
+  if (reservedNames.includes(name.toLowerCase())) {
+    res.status(400).json({
+      error: `Cannot use reserved provider name '${name}' as variant name`,
+    });
+    return;
+  }
+
   const config = readConfigSafe();
   config.cliproxy = config.cliproxy || {};
 
@@ -472,10 +481,14 @@ apiRoutes.delete('/cliproxy/:name', (req: Request, res: Response): void => {
     return;
   }
 
-  // Delete settings file
-  const settingsPath = path.join(getCcsDir(), `${name}.settings.json`);
-  if (fs.existsSync(settingsPath)) {
-    fs.unlinkSync(settingsPath);
+  // Never delete settings files for reserved provider names (safety guard)
+  const reservedNames = ['gemini', 'codex', 'agy', 'qwen', 'iflow'];
+  if (!reservedNames.includes(name.toLowerCase())) {
+    // Only delete settings file for non-reserved variant names
+    const settingsPath = path.join(getCcsDir(), `${name}.settings.json`);
+    if (fs.existsSync(settingsPath)) {
+      fs.unlinkSync(settingsPath);
+    }
   }
 
   delete config.cliproxy[name];
