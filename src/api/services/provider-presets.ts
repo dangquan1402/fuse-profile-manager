@@ -23,7 +23,7 @@ export interface ProviderPreset {
   alwaysThinkingEnabled?: boolean;
 }
 
-export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api';
 
 /**
  * Provider presets available via CLI and UI
