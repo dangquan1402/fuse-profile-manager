@@ -18,6 +18,7 @@ interface ProviderEditorHeaderProps {
   hasChanges: boolean;
   isRawJsonValid: boolean;
   isSaving: boolean;
+  isRemoteMode?: boolean;
   onRefetch: () => void;
   onSave: () => void;
 }
@@ -31,6 +32,7 @@ export function ProviderEditorHeader({
   hasChanges,
   isRawJsonValid,
   isSaving,
+  isRemoteMode,
   onRefetch,
   onSave,
 }: ProviderEditorHeaderProps) {
@@ -41,13 +43,13 @@ export function ProviderEditorHeader({
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold">{displayName}</h2>
-            {data?.path && (
+            {!isRemoteMode && data?.path && (
               <Badge variant="outline" className="text-xs">
-                {data.path.replace(/^.*\//, '')}
+                {data.path.replace(/^.*[\\/]/, '')}
               </Badge>
             )}
           </div>
-          {data && (
+          {!isRemoteMode && data && (
             <p className="text-xs text-muted-foreground mt-0.5">
               Last modified: {new Date(data.mtime).toLocaleString()}
             </p>
