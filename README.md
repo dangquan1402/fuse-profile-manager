@@ -91,8 +91,13 @@ The dashboard provides visual management for all account types:
 | **Codex** | OAuth | `ccs codex` | Code generation |
 | **Copilot** | OAuth | `ccs copilot` | GitHub Copilot models |
 | **Antigravity** | OAuth | `ccs agy` | Alternative routing |
+| **OpenRouter** | API Key | `ccs openrouter` | 300+ models, unified API |
 | **GLM** | API Key | `ccs glm` | Cost-optimized execution |
 | **Kimi** | API Key | `ccs kimi` | Long-context, thinking mode |
+
+**OpenRouter Integration** (v7.0.0): CCS v7.0.0 adds OpenRouter with interactive model picker, dynamic discovery, and tier mapping (opus/sonnet/haiku). Create via `ccs api create --preset openrouter` or dashboard.
+
+![OpenRouter API Profiles](assets/screenshots/api-profiles-openrouter.webp)
 
 > **OAuth providers** authenticate via browser on first run. Tokens are cached in `~/.ccs/cliproxy/auth/`.
 
