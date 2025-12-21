@@ -5,7 +5,7 @@
  * Used in conjunction with ProjectSelectionDialog component.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 interface GCloudProject {
   id: string;
@@ -102,10 +102,13 @@ export function useProjectSelection() {
     setState({ isOpen: false, prompt: null });
   }, []);
 
-  return {
-    isOpen: state.isOpen,
-    prompt: state.prompt,
-    onSelect: handleSelect,
-    onClose: handleClose,
-  };
+  return useMemo(
+    () => ({
+      isOpen: state.isOpen,
+      prompt: state.prompt,
+      onSelect: handleSelect,
+      onClose: handleClose,
+    }),
+    [state.isOpen, state.prompt, handleSelect, handleClose]
+  );
 }

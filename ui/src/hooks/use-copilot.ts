@@ -4,6 +4,7 @@
  * React hook for managing GitHub Copilot integration state.
  */
 
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const API_BASE = '/api';
@@ -247,54 +248,89 @@ export function useCopilot() {
     },
   });
 
-  return {
-    // Status
-    status: statusQuery.data,
-    statusLoading: statusQuery.isLoading,
-    statusError: statusQuery.error,
-    refetchStatus: statusQuery.refetch,
+  return useMemo(
+    () => ({
+      // Status
+      status: statusQuery.data,
+      statusLoading: statusQuery.isLoading,
+      statusError: statusQuery.error,
+      refetchStatus: statusQuery.refetch,
 
-    // Config
-    config: configQuery.data,
-    configLoading: configQuery.isLoading,
+      // Config
+      config: configQuery.data,
+      configLoading: configQuery.isLoading,
 
-    // Models
-    models: modelsQuery.data?.models ?? [],
-    currentModel: modelsQuery.data?.current,
-    modelsLoading: modelsQuery.isLoading,
+      // Models
+      models: modelsQuery.data?.models ?? [],
+      currentModel: modelsQuery.data?.current,
+      modelsLoading: modelsQuery.isLoading,
 
-    // Raw Settings
-    rawSettings: rawSettingsQuery.data,
-    rawSettingsLoading: rawSettingsQuery.isLoading,
-    refetchRawSettings: rawSettingsQuery.refetch,
+      // Raw Settings
+      rawSettings: rawSettingsQuery.data,
+      rawSettingsLoading: rawSettingsQuery.isLoading,
+      refetchRawSettings: rawSettingsQuery.refetch,
 
-    // Mutations
-    updateConfig: updateConfigMutation.mutate,
-    updateConfigAsync: updateConfigMutation.mutateAsync,
-    isUpdating: updateConfigMutation.isPending,
+      // Mutations
+      updateConfig: updateConfigMutation.mutate,
+      updateConfigAsync: updateConfigMutation.mutateAsync,
+      isUpdating: updateConfigMutation.isPending,
 
-    saveRawSettings: saveRawSettingsMutation.mutate,
-    saveRawSettingsAsync: saveRawSettingsMutation.mutateAsync,
-    isSavingRawSettings: saveRawSettingsMutation.isPending,
+      saveRawSettings: saveRawSettingsMutation.mutate,
+      saveRawSettingsAsync: saveRawSettingsMutation.mutateAsync,
+      isSavingRawSettings: saveRawSettingsMutation.isPending,
 
-    startAuth: startAuthMutation.mutate,
-    startAuthAsync: startAuthMutation.mutateAsync,
-    isAuthenticating: startAuthMutation.isPending,
-    authResult: startAuthMutation.data,
+      startAuth: startAuthMutation.mutate,
+      startAuthAsync: startAuthMutation.mutateAsync,
+      isAuthenticating: startAuthMutation.isPending,
+      authResult: startAuthMutation.data,
 
-    startDaemon: startDaemonMutation.mutate,
-    isStartingDaemon: startDaemonMutation.isPending,
+      startDaemon: startDaemonMutation.mutate,
+      isStartingDaemon: startDaemonMutation.isPending,
 
-    stopDaemon: stopDaemonMutation.mutate,
-    isStoppingDaemon: stopDaemonMutation.isPending,
+      stopDaemon: stopDaemonMutation.mutate,
+      isStoppingDaemon: stopDaemonMutation.isPending,
 
-    // Install
-    info: infoQuery.data,
-    infoLoading: infoQuery.isLoading,
-    refetchInfo: infoQuery.refetch,
+      // Install
+      info: infoQuery.data,
+      infoLoading: infoQuery.isLoading,
+      refetchInfo: infoQuery.refetch,
 
-    install: installMutation.mutate,
-    installAsync: installMutation.mutateAsync,
-    isInstalling: installMutation.isPending,
-  };
+      install: installMutation.mutate,
+      installAsync: installMutation.mutateAsync,
+      isInstalling: installMutation.isPending,
+    }),
+    [
+      statusQuery.data,
+      statusQuery.isLoading,
+      statusQuery.error,
+      statusQuery.refetch,
+      configQuery.data,
+      configQuery.isLoading,
+      modelsQuery.data,
+      modelsQuery.isLoading,
+      rawSettingsQuery.data,
+      rawSettingsQuery.isLoading,
+      rawSettingsQuery.refetch,
+      updateConfigMutation.mutate,
+      updateConfigMutation.mutateAsync,
+      updateConfigMutation.isPending,
+      saveRawSettingsMutation.mutate,
+      saveRawSettingsMutation.mutateAsync,
+      saveRawSettingsMutation.isPending,
+      startAuthMutation.mutate,
+      startAuthMutation.mutateAsync,
+      startAuthMutation.isPending,
+      startAuthMutation.data,
+      startDaemonMutation.mutate,
+      startDaemonMutation.isPending,
+      stopDaemonMutation.mutate,
+      stopDaemonMutation.isPending,
+      infoQuery.data,
+      infoQuery.isLoading,
+      infoQuery.refetch,
+      installMutation.mutate,
+      installMutation.mutateAsync,
+      installMutation.isPending,
+    ]
+  );
 }

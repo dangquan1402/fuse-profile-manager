@@ -3,7 +3,7 @@
  * Manages popup-based OAuth authentication flows
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -180,9 +180,12 @@ export function useCliproxyAuthFlow() {
     setState({ provider: null, isAuthenticating: false, error: null });
   }, [cleanup]);
 
-  return {
-    ...state,
-    startAuth,
-    cancelAuth,
-  };
+  return useMemo(
+    () => ({
+      ...state,
+      startAuth,
+      cancelAuth,
+    }),
+    [state, startAuth, cancelAuth]
+  );
 }

@@ -5,7 +5,15 @@
  */
 
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  type ReactNode,
+} from 'react';
 
 interface PrivacyContextValue {
   /** Whether privacy/demo mode is enabled */
@@ -32,13 +40,14 @@ export function PrivacyProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, String(privacyMode));
   }, [privacyMode]);
 
-  const togglePrivacyMode = () => setPrivacyMode((prev) => !prev);
+  const togglePrivacyMode = useCallback(() => setPrivacyMode((prev) => !prev), []);
 
-  return (
-    <PrivacyContext.Provider value={{ privacyMode, togglePrivacyMode }}>
-      {children}
-    </PrivacyContext.Provider>
+  const value = useMemo(
+    () => ({ privacyMode, togglePrivacyMode }),
+    [privacyMode, togglePrivacyMode]
   );
+
+  return <PrivacyContext.Provider value={value}>{children}</PrivacyContext.Provider>;
 }
 
 export function usePrivacy() {

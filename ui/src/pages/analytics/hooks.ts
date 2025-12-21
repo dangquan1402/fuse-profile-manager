@@ -41,11 +41,14 @@ export function useAnalyticsPage() {
     }
   }, [refreshUsage]);
 
-  // Convert dates to API format
-  const apiOptions = {
-    startDate: dateRange?.from,
-    endDate: dateRange?.to,
-  };
+  // Convert dates to API format - memoized to prevent unnecessary re-renders
+  const apiOptions = useMemo(
+    () => ({
+      startDate: dateRange?.from,
+      endDate: dateRange?.to,
+    }),
+    [dateRange?.from, dateRange?.to]
+  );
 
   // Fetch data
   const { data: summary, isLoading: isSummaryLoading } = useUsageSummary(apiOptions);

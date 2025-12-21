@@ -4,7 +4,7 @@
  * Manages WebSocket connection, auto-reconnect, and React Query invalidation.
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -141,5 +141,5 @@ export function useWebSocket() {
     return () => clearInterval(interval);
   }, []);
 
-  return { status, connect, disconnect };
+  return useMemo(() => ({ status, connect, disconnect }), [status, connect, disconnect]);
 }
