@@ -117,6 +117,6 @@ jobs:
             fi
 
             echo "Tagging issue #$NUM"
-            gh issue comment "$NUM" --repo "${{ github.repository }}" --body "[i] Available in \`$VERSION\`. Install: \`npm i @kaitranntt/ccs@dev\`" || true
+            gh issue comment "$NUM" --repo "${{ github.repository }}" --body "[i] Available in \`$VERSION\`. Update: \`ccs update --dev\`" || true
             gh issue edit "$NUM" --add-label "released-dev" --repo "${{ github.repository }}" || true
           done
