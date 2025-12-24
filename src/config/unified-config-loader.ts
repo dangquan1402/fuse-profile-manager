@@ -184,7 +184,7 @@ function mergeWithDefaults(partial: Partial<UnifiedConfig>): UnifiedConfig {
         enabled:
           partial.cliproxy_server?.remote?.enabled ?? DEFAULT_CLIPROXY_SERVER_CONFIG.remote.enabled,
         host: partial.cliproxy_server?.remote?.host ?? DEFAULT_CLIPROXY_SERVER_CONFIG.remote.host,
-        // Port is optional - undefined means use protocol default (443/80)
+        // Port is optional - undefined means use protocol default (443 for HTTPS, 8317 for HTTP)
         port: partial.cliproxy_server?.remote?.port,
         protocol:
           partial.cliproxy_server?.remote?.protocol ??

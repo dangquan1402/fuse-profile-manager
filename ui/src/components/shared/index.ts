@@ -8,6 +8,7 @@ export { CodeEditor } from './code-editor';
 export { CommandBuilder } from './command-builder';
 export { ConfirmDialog } from './confirm-dialog';
 export { ConnectionIndicator } from './connection-indicator';
+export { DeviceCodeDialog } from './device-code-dialog';
 export { DocsLink } from './docs-link';
 export { GitHubLink } from './github-link';
 export { GlobalEnvIndicator } from './global-env-indicator';

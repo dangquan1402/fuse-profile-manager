@@ -12,7 +12,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ClaudeKitBadge } from '@/components/shared/claudekit-badge';
 import { SponsorButton } from '@/components/shared/sponsor-button';
 import { ProjectSelectionDialog } from '@/components/shared/project-selection-dialog';
+import { DeviceCodeDialog } from '@/components/shared/device-code-dialog';
 import { useProjectSelection } from '@/hooks/use-project-selection';
+import { useDeviceCode } from '@/hooks/use-device-code';
 
 function PageLoader() {
   return (
@@ -25,6 +27,7 @@ function PageLoader() {
 
 export function Layout() {
   const { isOpen, prompt, onSelect, onClose } = useProjectSelection();
+  const deviceCode = useDeviceCode();
 
   return (
     <SidebarProvider>
@@ -62,6 +65,19 @@ export function Layout() {
           defaultProjectId={prompt.defaultProjectId}
           supportsAll={prompt.supportsAll}
           onSelect={onSelect}
+        />
+      )}
+
+      {/* Global device code dialog for Device Code OAuth flows (GitHub Copilot, Qwen) */}
+      {deviceCode.prompt && (
+        <DeviceCodeDialog
+          open={deviceCode.isOpen}
+          onClose={deviceCode.onClose}
+          sessionId={deviceCode.prompt.sessionId}
+          provider={deviceCode.prompt.provider}
+          userCode={deviceCode.prompt.userCode}
+          verificationUrl={deviceCode.prompt.verificationUrl}
+          expiresAt={deviceCode.prompt.expiresAt}
         />
       )}
     </SidebarProvider>

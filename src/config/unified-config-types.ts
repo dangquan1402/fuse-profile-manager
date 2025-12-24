@@ -345,7 +345,7 @@ export const DEFAULT_CLIPROXY_SERVER_CONFIG: CliproxyServerConfig = {
   remote: {
     enabled: false,
     host: '',
-    // port is intentionally omitted - will use protocol default (443 for HTTPS, 80 for HTTP)
+    // port is intentionally omitted - will use protocol default (443 for HTTPS, 8317 for HTTP)
     protocol: 'http',
     auth_token: '',
   },

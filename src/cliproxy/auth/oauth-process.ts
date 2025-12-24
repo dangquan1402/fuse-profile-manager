@@ -22,6 +22,7 @@ import {
 import { ProviderOAuthConfig } from './auth-types';
 import { getTimeoutTroubleshooting, showStep } from './environment-detector';
 import { isAuthenticated, registerAccountFromToken } from './token-manager';
+import { deviceCodeEvents, type DeviceCodePrompt } from '../device-code-handler';
 
 /** Options for OAuth process execution */
 export interface OAuthProcessOptions {
@@ -46,6 +47,10 @@ interface ProcessState {
   accumulatedOutput: string;
   parsedProjects: GCloudProject[];
   sessionId: string;
+  /** Device code displayed to user (for Device Code Flow) */
+  deviceCodeDisplayed: boolean;
+  /** The user code to enter at verification URL */
+  userCode: string | null;
 }
 
 /**
@@ -99,6 +104,8 @@ async function handleStdout(
   log(`stdout: ${output.trim()}`);
   state.accumulatedOutput += output;
 
+  const isDeviceCodeFlow = options.callbackPort === null;
+
   // Parse project list when available
   if (isProjectList(state.accumulatedOutput) && state.parsedProjects.length === 0) {
     state.parsedProjects = parseProjectList(state.accumulatedOutput);
@@ -111,16 +118,62 @@ async function handleStdout(
     await handleProjectSelection(output, state, options, authProcess, log);
   }
 
-  // Detect callback server / browser
-  if (!state.browserOpened && (output.includes('listening') || output.includes('http'))) {
+  // Handle Device Code Flow: parse and display user code
+  if (isDeviceCodeFlow && !state.deviceCodeDisplayed) {
+    // Parse device/user code from various formats:
+    // "Enter code: XXXX-YYYY" or "code XXXX-YYYY" or "user code: XXXX-YYYY"
+    const codeMatch = state.accumulatedOutput.match(
+      /(?:enter\s+)?(?:user\s+)?code[:\s]+["']?([A-Z0-9]{4,8}[-\s]?[A-Z0-9]{4,8})["']?/i
+    );
+    const urlMatch = state.accumulatedOutput.match(/(https?:\/\/[^\s]+device[^\s]*)/i);
+
+    if (codeMatch) {
+      state.userCode = codeMatch[1].toUpperCase();
+      state.deviceCodeDisplayed = true;
+      log(`Parsed device code: ${state.userCode}`);
+
+      const verificationUrl = urlMatch?.[1] || 'https://github.com/login/device';
+
+      // Emit device code event for WebSocket broadcast to UI
+      const deviceCodePrompt: DeviceCodePrompt = {
+        sessionId: state.sessionId,
+        provider: options.provider,
+        userCode: state.userCode,
+        verificationUrl,
+        expiresAt: Date.now() + 900000, // 15 minutes
+      };
+      deviceCodeEvents.emit('deviceCode:received', deviceCodePrompt);
+
+      // Display device code prominently in CLI
+      console.log('');
+      console.log('  ╔══════════════════════════════════════════════════════╗');
+      console.log(`  ║  Enter this code: ${state.userCode.padEnd(35)}║`);
+      console.log('  ╚══════════════════════════════════════════════════════╝');
+      console.log('');
+      console.log(info(`Open: ${verificationUrl}`));
+      console.log('');
+
+      // Update step display for device code flow
+      process.stdout.write('\x1b[1A\x1b[2K');
+      showStep(2, 4, 'ok', 'Device code received');
+      showStep(3, 4, 'progress', 'Waiting for authorization...');
+    }
+  }
+
+  // Detect callback server / browser (for Authorization Code flows only)
+  if (
+    !isDeviceCodeFlow &&
+    !state.browserOpened &&
+    (output.includes('listening') || output.includes('http'))
+  ) {
     process.stdout.write('\x1b[1A\x1b[2K');
     showStep(2, 4, 'ok', `Callback server listening on port ${options.callbackPort}`);
     showStep(3, 4, 'progress', 'Opening browser...');
     state.browserOpened = true;
   }
 
-  // Display OAuth URLs in headless mode
-  if (options.headless && !state.urlDisplayed) {
+  // Display OAuth URLs in headless mode (for non-device-code flows)
+  if (!isDeviceCodeFlow && options.headless && !state.urlDisplayed) {
     const urlMatch = output.match(/https?:\/\/[^\s]+/);
     if (urlMatch) {
       console.log('');
@@ -218,6 +271,8 @@ export function executeOAuthProcess(options: OAuthProcessOptions): Promise<Accou
       accumulatedOutput: '',
       parsedProjects: [],
       sessionId: generateSessionId(),
+      deviceCodeDisplayed: false,
+      userCode: null,
     };
 
     const startTime = Date.now();
@@ -236,16 +291,33 @@ export function executeOAuthProcess(options: OAuthProcessOptions): Promise<Accou
     });
 
     // Show waiting message after delay
+    const isDeviceCodeFlow = callbackPort === null;
     setTimeout(() => {
-      if (!state.browserOpened) {
-        process.stdout.write('\x1b[1A\x1b[2K');
-        showStep(2, 4, 'ok', `Callback server ready (port ${callbackPort})`);
-        showStep(3, 4, 'ok', 'Browser opened');
-        state.browserOpened = true;
+      if (isDeviceCodeFlow) {
+        // Device Code Flow: show polling message
+        if (!state.deviceCodeDisplayed) {
+          // Code not yet displayed, show generic waiting message
+          showStep(3, 4, 'progress', 'Waiting for device code...');
+        }
+        showStep(4, 4, 'progress', 'Polling for authorization...');
+        console.log('');
+        console.log(
+          info('Complete the login in your browser. This page will update automatically.')
+        );
+      } else {
+        // Authorization Code Flow: show callback server message
+        if (!state.browserOpened) {
+          process.stdout.write('\x1b[1A\x1b[2K');
+          showStep(2, 4, 'ok', `Callback server ready (port ${callbackPort})`);
+          showStep(3, 4, 'ok', 'Browser opened');
+          state.browserOpened = true;
+        }
+        showStep(4, 4, 'progress', 'Waiting for OAuth callback...');
+        console.log('');
+        console.log(
+          info('Complete the login in your browser. This page will update automatically.')
+        );
       }
-      showStep(4, 4, 'progress', 'Waiting for OAuth callback...');
-      console.log('');
-      console.log(info('Complete the login in your browser. This page will update automatically.'));
       if (!verbose) console.log(info('If stuck, try: ccs ' + provider + ' --auth --verbose'));
     }, 2000);
 
@@ -269,12 +341,34 @@ export function executeOAuthProcess(options: OAuthProcessOptions): Promise<Accou
         if (isAuthenticated(provider)) {
           console.log('');
           console.log(ok(`Authentication successful (${elapsed}s)`));
+
+          // Emit device code completion event for UI
+          if (isDeviceCodeFlow && state.deviceCodeDisplayed) {
+            deviceCodeEvents.emit('deviceCode:completed', state.sessionId);
+          }
+
           resolve(registerAccountFromToken(provider, tokenDir, nickname));
         } else {
+          // Emit device code failure event for UI
+          if (isDeviceCodeFlow && state.deviceCodeDisplayed) {
+            deviceCodeEvents.emit('deviceCode:failed', {
+              sessionId: state.sessionId,
+              error: 'Token not found after authentication',
+            });
+          }
+
           handleTokenNotFound(provider, callbackPort);
           resolve(null);
         }
       } else {
+        // Emit device code failure event for UI
+        if (isDeviceCodeFlow && state.deviceCodeDisplayed) {
+          deviceCodeEvents.emit('deviceCode:failed', {
+            sessionId: state.sessionId,
+            error: `Auth process exited with code ${code}`,
+          });
+        }
+
         handleProcessError(code, state, headless);
         resolve(null);
       }
