@@ -1,3 +1,10 @@
+## [7.7.1](https://github.com/kaitranntt/ccs/compare/v7.7.0...v7.7.1) (2025-12-26)
+
+### Bug Fixes
+
+* **health:** correct CLIProxy port detection on macOS/Linux ([d1a0ebe](https://github.com/kaitranntt/ccs/commit/d1a0ebee61b8987df85c328d359967e46d1e5226))
+* **health:** use prefix matching for Linux process name truncation ([91e7b9f](https://github.com/kaitranntt/ccs/commit/91e7b9f93787e5b2d45bffdaed75e75c151281e4))
+
 ## [7.7.0](https://github.com/kaitranntt/ccs/compare/v7.6.0...v7.7.0) (2025-12-25)
 
 ### Features
