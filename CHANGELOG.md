@@ -1,3 +1,31 @@
+## [7.8.0](https://github.com/kaitranntt/ccs/compare/v7.7.1...v7.8.0) (2025-12-26)
+
+### Features
+
+* **api:** add auth tokens REST endpoints ([ffd4996](https://github.com/kaitranntt/ccs/commit/ffd499698e03f1849a0deef3d289c08079a0951e))
+* **cli:** add tokens command for auth token management ([0c6491c](https://github.com/kaitranntt/ccs/commit/0c6491c9d27a3bfb1ecc8c1627d1e1a70f59220a))
+* **cliproxy:** add customizable auth token manager ([c4f0916](https://github.com/kaitranntt/ccs/commit/c4f09168ff35e52c8613a3181a86e4e4e5392dfc))
+* **cliproxy:** add variant port isolation for concurrent proxy instances ([0bcaf4b](https://github.com/kaitranntt/ccs/commit/0bcaf4bc681e26bd13485678c88b55f4ac471eed))
+* **ui:** add auth tokens settings tab ([71335a6](https://github.com/kaitranntt/ccs/commit/71335a61935971c7621fefcef973cc2b42e313fd))
+* **ui:** add Settings link to control panel key hint ([7a6341f](https://github.com/kaitranntt/ccs/commit/7a6341f0d9a8dffdcbb318cf34f3dbbfbea70cb5))
+
+### Bug Fixes
+
+* **cliproxy:** use auth inheritance in stats-fetcher and config-generator ([133aeba](https://github.com/kaitranntt/ccs/commit/133aebaabc2295b75c13a14a448c2cc60d471363))
+* **dashboard:** read accounts from unified config ([8d7845d](https://github.com/kaitranntt/ccs/commit/8d7845d67fb156671713888726d631415d0f4f9c)), closes [#203](https://github.com/kaitranntt/ccs/issues/203)
+* **dashboard:** support unified config across health checks and settings ([9722e19](https://github.com/kaitranntt/ccs/commit/9722e1905dd25b9dd4d602e860ba36586db043b9)), closes [#203](https://github.com/kaitranntt/ccs/issues/203)
+* **dashboard:** support unified config in overview and file watcher ([25f0ddb](https://github.com/kaitranntt/ccs/commit/25f0ddb9ddb19f9eb75c880b7c878d840cb2a494)), closes [#203](https://github.com/kaitranntt/ccs/issues/203)
+* **doctor:** comprehensive health check fixes ([ac74550](https://github.com/kaitranntt/ccs/commit/ac745503e2a1644b2cb3542b917dbce5e6109200))
+* **doctor:** prefer config.yaml and make settings files optional ([4fca7d1](https://github.com/kaitranntt/ccs/commit/4fca7d16edc6985d14422a21d45dccd619ef9aba))
+* **ui:** initialize colors early for consistent status output ([e38af6a](https://github.com/kaitranntt/ccs/commit/e38af6ad6e2f65a73b4d16f6b4f0cead2eb7374d)), closes [#201](https://github.com/kaitranntt/ccs/issues/201)
+* **ui:** simplify config header and add explicit save button ([7e031b5](https://github.com/kaitranntt/ccs/commit/7e031b5097b49f0cfc07334d31b83af41fac9669))
+* **ui:** use effective management secret in control panel embed ([a762563](https://github.com/kaitranntt/ccs/commit/a762563f1b1fa8d984b7c9abf6b3b3c7f8ab6f97))
+
+### Tests
+
+* **cliproxy:** add comprehensive auth token test suite ([ed6776a](https://github.com/kaitranntt/ccs/commit/ed6776aadcf06c0c8572babe1ddc1de4e0902a17))
+* **cliproxy:** add integration tests for variant port isolation ([8f120b5](https://github.com/kaitranntt/ccs/commit/8f120b515f0b71a2730c7affb50c9b148c00e502)), closes [#184](https://github.com/kaitranntt/ccs/issues/184)
+
 ## [7.7.1](https://github.com/kaitranntt/ccs/compare/v7.7.0...v7.7.1) (2025-12-26)
 
 ### Bug Fixes
