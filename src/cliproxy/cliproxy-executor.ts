@@ -17,7 +17,7 @@ import * as net from 'net';
 import { ProgressIndicator } from '../utils/progress-indicator';
 import { ok, fail, info, warn } from '../utils/ui';
 import { escapeShellArg } from '../utils/shell-executor';
-import { ensureCLIProxyBinary } from './binary-manager';
+import { ensureCLIProxyBinary, getInstalledCliproxyVersion } from './binary-manager';
 import {
   generateConfig,
   getEffectiveEnvVars,
@@ -48,7 +48,12 @@ import {
   installWebSearchHook,
   displayWebSearchStatus,
 } from '../utils/websearch-manager';
-import { registerSession, unregisterSession, cleanupOrphanedSessions } from './session-tracker';
+import {
+  registerSession,
+  unregisterSession,
+  cleanupOrphanedSessions,
+  stopProxy,
+} from './session-tracker';
 import { detectRunningProxy, waitForProxyHealthy, reclaimOrphanedProxy } from './proxy-detector';
 import { withStartupLock } from './startup-lock';
 import { loadOrCreateUnifiedConfig } from '../config/unified-config-loader';
@@ -429,8 +434,32 @@ export async function execClaudeWithCLIProxy(
     // Use startup lock to coordinate with other CCS processes
     await withStartupLock(async () => {
       // Detect running proxy using multiple methods (HTTP, session-lock, port-process)
-      const proxyStatus = await detectRunningProxy(cfg.port);
+      let proxyStatus = await detectRunningProxy(cfg.port);
       log(`Proxy detection: ${JSON.stringify(proxyStatus)}`);
+
+      // Check for version mismatch - restart proxy if installed version differs from running
+      if (proxyStatus.running && proxyStatus.verified && proxyStatus.version) {
+        const installedVersion = getInstalledCliproxyVersion();
+        if (installedVersion !== proxyStatus.version) {
+          console.log(
+            warn(
+              `Version mismatch: running v${proxyStatus.version}, installed v${installedVersion}. Restarting proxy...`
+            )
+          );
+          log(`Stopping outdated proxy (PID: ${proxyStatus.pid ?? 'unknown'})...`);
+          const stopResult = await stopProxy(cfg.port);
+          if (stopResult.stopped) {
+            log(`Stopped outdated proxy successfully`);
+          } else {
+            log(`Stop proxy result: ${stopResult.error ?? 'unknown error'}`);
+          }
+          // Wait for port to be released
+          await new Promise((r) => setTimeout(r, 500));
+          // Re-detect proxy status (should now be not running)
+          proxyStatus = await detectRunningProxy(cfg.port);
+          log(`Re-detection after version mismatch restart: ${JSON.stringify(proxyStatus)}`);
+        }
+      }
 
       if (proxyStatus.running && proxyStatus.verified) {
         // Healthy proxy found - join it
@@ -542,9 +571,12 @@ export async function execClaudeWithCLIProxy(
         throw new Error(`CLIProxy startup failed: ${err.message}`);
       }
 
-      // Register this session with the new proxy
-      sessionId = registerSession(cfg.port, proxy.pid as number);
-      log(`Registered session ${sessionId} with new proxy (PID ${proxy.pid})`);
+      // Register this session with the new proxy, including the installed version
+      const installedVersion = getInstalledCliproxyVersion();
+      sessionId = registerSession(cfg.port, proxy.pid as number, installedVersion);
+      log(
+        `Registered session ${sessionId} with new proxy (PID ${proxy.pid}, version ${installedVersion})`
+      );
     });
   }
 
