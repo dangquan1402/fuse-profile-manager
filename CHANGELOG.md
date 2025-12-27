@@ -1,3 +1,26 @@
+## [7.9.0](https://github.com/kaitranntt/ccs/compare/v7.8.0...v7.9.0) (2025-12-27)
+
+### Features
+
+* **dashboard:** add Import from Kiro IDE button ([5f59d71](https://github.com/kaitranntt/ccs/commit/5f59d710a687aa23b22f470114fc763bf1412fbd))
+* **ui:** add auth profile management to Dashboard ([fa8830e](https://github.com/kaitranntt/ccs/commit/fa8830e1ce97b6f0bb5f89c93325414a15412369))
+
+### Bug Fixes
+
+* **cliproxy:** ensure version sync after binary update ([29f1930](https://github.com/kaitranntt/ccs/commit/29f19308e627f46a5144521f8f2c75e9ff746f6a))
+* **config:** use safe inline logic in getSettingsPath() legacy fallback ([a4a473a](https://github.com/kaitranntt/ccs/commit/a4a473ac93a3adf9b51a0e9371bbd48fa7363157))
+* **dashboard:** support unified config.yaml in web server routes ([0c69740](https://github.com/kaitranntt/ccs/commit/0c697406947ef37f194db26e31d5822cc7e12463)), closes [#206](https://github.com/kaitranntt/ccs/issues/206)
+* improve type safety and error handling in config-manager ([8a3c5a4](https://github.com/kaitranntt/ccs/commit/8a3c5a446beb197148a132900a88f09043cbab55)), closes [#215](https://github.com/kaitranntt/ccs/issues/215)
+* **kiro:** add fallback import from Kiro IDE when OAuth callback redirects ([add4aa5](https://github.com/kaitranntt/ccs/commit/add4aa55c752be54164b42b0c108f54c24944570)), closes [#212](https://github.com/kaitranntt/ccs/issues/212)
+* run RecoveryManager before early-exit commands and improve config handling ([0be3977](https://github.com/kaitranntt/ccs/commit/0be397784525275d0bbcc94877942f8963ca3d33)), closes [#214](https://github.com/kaitranntt/ccs/issues/214)
+* **test:** remove redundant build from beforeAll hook ([67a48a8](https://github.com/kaitranntt/ccs/commit/67a48a8305125959ecab468f117cc9de0badddd5))
+* **tests:** update test files for renamed getCliproxyConfigPath function ([ec2ee0a](https://github.com/kaitranntt/ccs/commit/ec2ee0a36d8498fb596d2e3ef793ce89a9f254f8))
+* wrap RecoveryManager in try-catch to prevent blocking CLI commands ([2fff770](https://github.com/kaitranntt/ccs/commit/2fff770b6bc67616e855cc8dc940751bd1267a67)), closes [#215](https://github.com/kaitranntt/ccs/issues/215)
+
+### Documentation
+
+* update design principles and add feature interface requirements ([c200334](https://github.com/kaitranntt/ccs/commit/c20033473b150689ff4c581d5b4b2a6e12adb758))
+
 ## [7.8.0](https://github.com/kaitranntt/ccs/compare/v7.7.1...v7.8.0) (2025-12-26)
 
 ### Features
