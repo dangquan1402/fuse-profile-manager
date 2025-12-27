@@ -121,9 +121,8 @@ export function loadConfigSafe(): Config {
       cliproxy = {};
       for (const [name, variant] of Object.entries(unifiedConfig.cliproxy.variants)) {
         cliproxy[name] = {
-          // Cast provider - unified has more providers than legacy type
-          provider: variant.provider as 'gemini' | 'codex' | 'agy' | 'qwen',
-          settings: variant.settings || '',
+          provider: variant.provider,
+          settings: variant.settings,
           account: variant.account,
           port: variant.port,
         };
@@ -145,7 +144,13 @@ export function loadConfigSafe(): Config {
   }
 
   const raw = fs.readFileSync(configPath, 'utf8');
-  const parsed: unknown = JSON.parse(raw);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    throw new Error(`Malformed JSON in config: ${configPath} - ${(e as Error).message}`);
+  }
 
   if (!isConfig(parsed)) {
     throw new Error(`Invalid config format: ${configPath}`);
