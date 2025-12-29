@@ -38,6 +38,8 @@ export interface QuotaResult {
   isExpired?: boolean;
   /** ISO timestamp when token expires/expired */
   expiresAt?: string;
+  /** True if account hasn't been activated in official Antigravity app */
+  isUnprovisioned?: boolean;
 }
 
 /** Google Cloud Code API endpoints */
@@ -257,7 +259,7 @@ function readAuthData(provider: CLIProxyProvider, accountId: string): AuthData |
  */
 async function getProjectId(
   accessToken: string
-): Promise<{ projectId: string | null; error?: string }> {
+): Promise<{ projectId: string | null; error?: string; isUnprovisioned?: boolean }> {
   const url = `${ANTIGRAVITY_API_BASE}/${ANTIGRAVITY_API_VERSION}:loadCodeAssist`;
 
   const controller = new AbortController();
@@ -304,7 +306,12 @@ async function getProjectId(
     }
 
     if (!projectId?.trim()) {
-      return { projectId: null, error: 'No project ID in response' };
+      // Account authenticated but not provisioned - user needs to sign in via Antigravity app
+      return {
+        projectId: null,
+        error: 'Sign in to Antigravity app to activate quota.',
+        isUnprovisioned: true,
+      };
     }
 
     return { projectId: projectId.trim() };
@@ -465,30 +472,27 @@ export async function fetchAccountQuota(
   // Get project ID - prefer stored value, fallback to API call
   let projectId = authData.projectId;
   if (!projectId) {
-    const projectResult = await getProjectId(accessToken);
-    if (!projectResult.projectId) {
+    let lastProjectResult = await getProjectId(accessToken);
+    if (!lastProjectResult.projectId) {
       // If project ID fetch fails, it might be token issue - try refresh if we haven't
       if (authData.refreshToken && accessToken === authData.accessToken) {
         const refreshResult = await refreshAccessToken(authData.refreshToken);
         if (refreshResult.accessToken) {
           accessToken = refreshResult.accessToken;
-          const retryResult = await getProjectId(accessToken);
-          if (retryResult.projectId) {
-            projectId = retryResult.projectId;
-          }
+          lastProjectResult = await getProjectId(accessToken);
         }
       }
-      if (!projectId) {
+      if (!lastProjectResult.projectId) {
         return {
           success: false,
           models: [],
           lastUpdated: Date.now(),
-          error: projectResult.error || 'Failed to retrieve project ID',
+          error: lastProjectResult.error || 'Failed to retrieve project ID',
+          isUnprovisioned: lastProjectResult.isUnprovisioned,
         };
       }
-    } else {
-      projectId = projectResult.projectId;
     }
+    projectId = lastProjectResult.projectId;
   }
 
   // Fetch models with quota
