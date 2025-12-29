@@ -12,6 +12,7 @@ import {
   projectSelectionEvents,
   type ProjectSelectionPrompt,
 } from '../cliproxy/project-selection-handler';
+import { deviceCodeEvents, type DeviceCodePrompt } from '../cliproxy/device-code-handler';
 
 export interface WSMessage {
   type: string;
@@ -117,10 +118,53 @@ export function setupWebSocket(wss: WebSocketServer): { cleanup: () => void } {
     });
   };
 
+  // Listen for device code events and broadcast to clients
+  const handleDeviceCodeReceived = (prompt: DeviceCodePrompt): void => {
+    console.log(info(`[WS] Broadcasting device code (session: ${prompt.sessionId})`));
+    broadcast({
+      type: 'deviceCodeReceived',
+      ...prompt,
+      timestamp: Date.now(),
+    });
+  };
+
+  const handleDeviceCodeCompleted = (sessionId: string): void => {
+    console.log(info(`[WS] Device code auth completed (session: ${sessionId})`));
+    broadcast({
+      type: 'deviceCodeCompleted',
+      sessionId,
+      timestamp: Date.now(),
+    });
+  };
+
+  const handleDeviceCodeFailed = (data: { sessionId: string; error?: string }): void => {
+    console.log(info(`[WS] Device code auth failed (session: ${data.sessionId})`));
+    broadcast({
+      type: 'deviceCodeFailed',
+      ...data,
+      timestamp: Date.now(),
+    });
+  };
+
+  const handleDeviceCodeExpired = (sessionId: string): void => {
+    console.log(info(`[WS] Device code expired (session: ${sessionId})`));
+    broadcast({
+      type: 'deviceCodeExpired',
+      sessionId,
+      timestamp: Date.now(),
+    });
+  };
+
   // Subscribe to project selection events
   projectSelectionEvents.on('selection:required', handleProjectSelectionRequired);
   projectSelectionEvents.on('selection:timeout', handleProjectSelectionTimeout);
   projectSelectionEvents.on('selection:submitted', handleProjectSelectionSubmitted);
+
+  // Subscribe to device code events
+  deviceCodeEvents.on('deviceCode:received', handleDeviceCodeReceived);
+  deviceCodeEvents.on('deviceCode:completed', handleDeviceCodeCompleted);
+  deviceCodeEvents.on('deviceCode:failed', handleDeviceCodeFailed);
+  deviceCodeEvents.on('deviceCode:expired', handleDeviceCodeExpired);
 
   // Cleanup function
   const cleanup = (): void => {
@@ -130,6 +174,12 @@ export function setupWebSocket(wss: WebSocketServer): { cleanup: () => void } {
     projectSelectionEvents.off('selection:required', handleProjectSelectionRequired);
     projectSelectionEvents.off('selection:timeout', handleProjectSelectionTimeout);
     projectSelectionEvents.off('selection:submitted', handleProjectSelectionSubmitted);
+
+    // Unsubscribe from device code events
+    deviceCodeEvents.off('deviceCode:received', handleDeviceCodeReceived);
+    deviceCodeEvents.off('deviceCode:completed', handleDeviceCodeCompleted);
+    deviceCodeEvents.off('deviceCode:failed', handleDeviceCodeFailed);
+    deviceCodeEvents.off('deviceCode:expired', handleDeviceCodeExpired);
 
     clients.forEach((client) => {
       client.close(1001, 'Server shutting down');

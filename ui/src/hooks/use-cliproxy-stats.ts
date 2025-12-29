@@ -200,8 +200,14 @@ export type { ModelQuota, QuotaResult };
 async function fetchAccountQuota(provider: string, accountId: string): Promise<QuotaResult> {
   const response = await fetch(`/api/cliproxy/quota/${provider}/${encodeURIComponent(accountId)}`);
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to fetch quota');
+    let message = 'Failed to fetch quota';
+    try {
+      const error = await response.json();
+      message = error.message || message;
+    } catch {
+      // Use default message if response isn't JSON
+    }
+    throw new Error(message);
   }
   return response.json();
 }

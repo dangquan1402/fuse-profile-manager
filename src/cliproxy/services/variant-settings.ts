@@ -10,6 +10,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { CLIProxyProfileName } from '../../auth/profile-detector';
 import { getCcsDir } from '../../utils/config-manager';
+import { expandPath } from '../../utils/helpers';
 import { getClaudeEnvVars, CLIPROXY_DEFAULT_PORT } from '../config-generator';
 import { CLIProxyProvider } from '../types';
 
@@ -30,8 +31,12 @@ interface SettingsFile {
 /**
  * Build settings env object for a variant
  */
-function buildSettingsEnv(provider: CLIProxyProfileName, model: string): SettingsEnv {
-  const baseEnv = getClaudeEnvVars(provider as CLIProxyProvider, CLIPROXY_DEFAULT_PORT);
+function buildSettingsEnv(
+  provider: CLIProxyProfileName,
+  model: string,
+  port: number = CLIPROXY_DEFAULT_PORT
+): SettingsEnv {
+  const baseEnv = getClaudeEnvVars(provider as CLIProxyProvider, port);
 
   return {
     ANTHROPIC_BASE_URL: baseEnv.ANTHROPIC_BASE_URL || '',
@@ -87,13 +92,14 @@ export function getRelativeSettingsPath(provider: CLIProxyProfileName, name: str
 export function createSettingsFile(
   name: string,
   provider: CLIProxyProfileName,
-  model: string
+  model: string,
+  port: number = CLIPROXY_DEFAULT_PORT
 ): string {
   const ccsDir = getCcsDir();
   const settingsPath = getSettingsFilePath(provider, name);
 
   const settings: SettingsFile = {
-    env: buildSettingsEnv(provider, model),
+    env: buildSettingsEnv(provider, model, port),
   };
 
   ensureDir(ccsDir);
@@ -108,13 +114,14 @@ export function createSettingsFile(
 export function createSettingsFileUnified(
   name: string,
   provider: CLIProxyProfileName,
-  model: string
+  model: string,
+  port: number = CLIPROXY_DEFAULT_PORT
 ): string {
-  const ccsDir = path.join(os.homedir(), '.ccs');
+  const ccsDir = getCcsDir(); // Use centralized function for CCS_HOME support
   const settingsPath = path.join(ccsDir, getSettingsFileName(provider, name));
 
   const settings: SettingsFile = {
-    env: buildSettingsEnv(provider, model),
+    env: buildSettingsEnv(provider, model, port),
   };
 
   ensureDir(ccsDir);
@@ -124,13 +131,43 @@ export function createSettingsFileUnified(
 }
 
 /**
- * Delete settings file if it exists
+ * Delete settings file if it exists.
+ * Uses expandPath() for cross-platform path handling.
  */
 export function deleteSettingsFile(settingsPath: string): boolean {
-  const resolvedPath = settingsPath.replace(/^~/, os.homedir());
+  const resolvedPath = expandPath(settingsPath);
   if (fs.existsSync(resolvedPath)) {
     fs.unlinkSync(resolvedPath);
     return true;
   }
   return false;
+}
+
+/**
+ * Update model in an existing settings file
+ */
+export function updateSettingsModel(settingsPath: string, model: string): void {
+  const resolvedPath = settingsPath.replace(/^~/, os.homedir());
+  if (!fs.existsSync(resolvedPath)) {
+    return;
+  }
+
+  try {
+    const content = fs.readFileSync(resolvedPath, 'utf8');
+    const settings = JSON.parse(content) as SettingsFile;
+
+    if (model) {
+      settings.env = settings.env || ({} as SettingsEnv);
+      settings.env.ANTHROPIC_MODEL = model;
+      settings.env.ANTHROPIC_DEFAULT_OPUS_MODEL = model;
+      settings.env.ANTHROPIC_DEFAULT_SONNET_MODEL = model;
+    } else {
+      // Clear model settings to use defaults
+      delete (settings.env as unknown as Record<string, string>).ANTHROPIC_MODEL;
+    }
+
+    fs.writeFileSync(resolvedPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+  } catch {
+    // Ignore errors - settings file may be invalid
+  }
 }

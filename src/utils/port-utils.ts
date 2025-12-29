@@ -38,7 +38,7 @@ export async function getPortProcess(port: number): Promise<PortProcess | null> 
  */
 async function getPortProcessUnix(port: number): Promise<PortProcess | null> {
   try {
-    const { stdout } = await execAsync(`lsof -i :${port} -sTCP:LISTEN -t -F pcn`, {
+    const { stdout } = await execAsync(`lsof -i :${port} -sTCP:LISTEN -F pcn`, {
       timeout: 3000,
     });
 
@@ -111,22 +111,17 @@ async function getPortProcessWindows(port: number): Promise<PortProcess | null> 
 
 /**
  * Check if process is CLIProxy
+ * Uses prefix matching to handle Linux kernel's 15-char process name truncation
+ * (e.g., 'cli-proxy-api-plus' becomes 'cli-proxy-api-p' in lsof/ps output)
  */
 export function isCLIProxyProcess(process: PortProcess | null): boolean {
   if (!process) {
     return false;
   }
 
-  // Match cli-proxy, cli-proxy.exe, cliproxy, cliproxy.exe, cli-proxy-api
   const name = process.processName.toLowerCase();
-  return [
-    'cli-proxy',
-    'cli-proxy.exe',
-    'cliproxy',
-    'cliproxy.exe',
-    'cli-proxy-api',
-    'cli-proxy-api.exe',
-  ].includes(name);
+  // All CLIProxy variants start with 'cli-proxy' or 'cliproxy'
+  return name.startsWith('cli-proxy') || name.startsWith('cliproxy');
 }
 
 /**
@@ -184,6 +179,32 @@ export async function checkWindowsFirewall(port: number): Promise<FirewallCheckR
 export interface BindingTestResult {
   success: boolean;
   message: string;
+}
+
+/**
+ * Wait for a port to become free (no process listening)
+ * @param port Port number to wait for
+ * @param timeoutMs Maximum time to wait in milliseconds (default: 5000)
+ * @param pollIntervalMs Interval between checks in milliseconds (default: 200)
+ * @returns True if port became free, false if timeout
+ */
+export async function waitForPortFree(
+  port: number,
+  timeoutMs = 5000,
+  pollIntervalMs = 200
+): Promise<boolean> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeoutMs) {
+    const process = await getPortProcess(port);
+    if (!process) {
+      return true; // Port is free
+    }
+    // Wait before next check
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  return false; // Timeout reached
 }
 
 /**

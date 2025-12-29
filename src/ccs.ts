@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { detectClaudeCli } from './utils/claude-detector';
 import { getSettingsPath, loadSettings } from './utils/config-manager';
+import { validateGlmKey } from './utils/api-key-validator';
 import { ErrorManager } from './utils/error-manager';
 import { execClaudeWithCLIProxy, CLIProxyProvider } from './cliproxy';
 import {
@@ -254,6 +255,13 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const firstArg = args[0];
 
+  // Initialize UI colors early to ensure consistent colored output
+  // Must happen before any status messages (ok, info, fail, etc.)
+  if (process.stdout.isTTY && !process.env['CI']) {
+    const { initUI } = await import('./utils/ui');
+    await initUI();
+  }
+
   // Trigger update check early for ALL commands except version/help/update
   // Only if TTY and not CI to avoid noise in automated environments
   const skipUpdateCheck = [
@@ -281,6 +289,24 @@ async function main(): Promise<void> {
   if (firstArg !== 'migrate') {
     const { autoMigrate } = await import('./config/migration-manager');
     await autoMigrate();
+  }
+
+  // Auto-recovery for missing configuration (BEFORE any early-exit commands)
+  // This ensures ALL commands benefit from auto-recovery, not just profile-switching flow
+  // Recovery is safe to run early - it only creates missing files with safe defaults
+  // Wrapped in try-catch to prevent blocking --version/--help on permission errors
+  try {
+    const RecoveryManagerModule = await import('./management/recovery-manager');
+    const RecoveryManager = RecoveryManagerModule.default;
+    const recovery = new RecoveryManager();
+    const recovered = recovery.recoverAll();
+
+    if (recovered) {
+      recovery.showRecoveryHints();
+    }
+  } catch (err) {
+    // Recovery is best-effort - don't block basic CLI functionality
+    console.warn('[!] Recovery failed:', (err as Error).message);
   }
 
   // Special case: version command (check BEFORE profile detection)
@@ -404,6 +430,20 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Special case: tokens command (auth token management)
+  if (firstArg === 'tokens') {
+    const { handleTokensCommand } = await import('./commands/tokens-command');
+    const exitCode = await handleTokensCommand(args.slice(1));
+    process.exit(exitCode);
+  }
+
+  // Special case: setup command (first-time wizard)
+  if (firstArg === 'setup' || firstArg === '--setup') {
+    const { handleSetupCommand } = await import('./commands/setup-command');
+    await handleSetupCommand(args.slice(1));
+    return;
+  }
+
   // Special case: copilot command (GitHub Copilot integration)
   // Only route to command handler for known subcommands, otherwise treat as profile
   const COPILOT_SUBCOMMANDS = [
@@ -433,14 +473,15 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Auto-recovery for missing configuration
-  const RecoveryManagerModule = await import('./management/recovery-manager');
-  const RecoveryManager = RecoveryManagerModule.default;
-  const recovery = new RecoveryManager();
-  const recovered = recovery.recoverAll();
-
-  if (recovered) {
-    recovery.showRecoveryHints();
+  // First-time install: offer setup wizard for interactive users
+  // Check independently of recovery status (user may have empty config.yaml)
+  // Skip if headless, CI, or non-TTY environment
+  const { isFirstTimeInstall } = await import('./commands/setup-command');
+  if (process.stdout.isTTY && !process.env['CI'] && isFirstTimeInstall()) {
+    console.log('');
+    console.log(info('First-time install detected. Run `ccs setup` for guided configuration.'));
+    console.log('    Or use `ccs config` for the web dashboard.');
+    console.log('');
   }
 
   // Detect profile
@@ -489,6 +530,32 @@ async function main(): Promise<void> {
 
       // Display WebSearch status (single line, equilibrium UX)
       displayWebSearchStatus();
+
+      // Pre-flight validation for GLM/GLMT profiles
+      if (profileInfo.name === 'glm' || profileInfo.name === 'glmt') {
+        const preflightSettingsPath = getSettingsPath(profileInfo.name);
+        const preflightSettings = loadSettings(preflightSettingsPath);
+        const apiKey = preflightSettings.env?.['ANTHROPIC_AUTH_TOKEN'];
+
+        if (apiKey) {
+          const validation = await validateGlmKey(
+            apiKey,
+            preflightSettings.env?.['ANTHROPIC_BASE_URL']
+          );
+
+          if (!validation.valid) {
+            console.error('');
+            console.error(fail(validation.error || 'API key validation failed'));
+            if (validation.suggestion) {
+              console.error('');
+              console.error(validation.suggestion);
+            }
+            console.error('');
+            console.error(info('To skip validation: CCS_SKIP_PREFLIGHT=1 ccs glm "prompt"'));
+            process.exit(1);
+          }
+        }
+      }
 
       // Check if this is GLMT profile (requires proxy)
       if (profileInfo.name === 'glmt') {

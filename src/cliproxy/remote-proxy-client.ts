@@ -36,7 +36,7 @@ export interface RemoteProxyClientConfig {
    * Remote proxy port.
    * Optional - defaults based on protocol:
    * - HTTPS: 443
-   * - HTTP: 80
+   * - HTTP: 8317 (CLIProxyAPI default)
    */
   port?: number;
   /** Protocol to use (http or https) */
@@ -52,8 +52,16 @@ export interface RemoteProxyClientConfig {
 /** Default timeout for remote proxy requests (aggressive for CLI UX) */
 const DEFAULT_TIMEOUT_MS = 2000;
 
-/** Default CLIProxyAPI port */
-const DEFAULT_CLIPROXY_PORT = 8317;
+/**
+ * Get default port for CLIProxyAPI based on protocol.
+ * - HTTP: 8317 (CLIProxyAPI default for local/dev scenarios)
+ * - HTTPS: 443 (standard SSL port for production remote servers)
+ *
+ * This matches the UI labels shown to users.
+ */
+function getDefaultPort(protocol: 'http' | 'https'): number {
+  return protocol === 'https' ? 443 : 8317;
+}
 
 /**
  * Get standard web port for protocol (for URL display omission)
@@ -65,11 +73,11 @@ function getStandardWebPort(protocol: 'http' | 'https'): number {
 }
 
 /**
- * Get effective port for CLIProxyAPI connection
- * If port is provided, use it. Otherwise use CLIProxyAPI default (8317).
+ * Get effective port for CLIProxyAPI connection.
+ * If port is provided, use it. Otherwise use protocol-based default.
  */
-function getEffectivePort(port: number | undefined): number {
-  return port ?? DEFAULT_CLIPROXY_PORT;
+function getEffectivePort(port: number | undefined, protocol: 'http' | 'https'): number {
+  return port ?? getDefaultPort(protocol);
 }
 
 /**
@@ -83,7 +91,7 @@ function buildProxyUrl(
   protocol: 'http' | 'https',
   path: string
 ): string {
-  const effectivePort = getEffectivePort(port);
+  const effectivePort = getEffectivePort(port, protocol);
   const standardWebPort = getStandardWebPort(protocol);
 
   // Only omit port from URL if it matches the standard web port for the protocol

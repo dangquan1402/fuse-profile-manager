@@ -23,6 +23,9 @@ import {
 } from '../../cliproxy/account-manager';
 import { getProxyTarget } from '../../cliproxy/proxy-target-resolver';
 import { fetchRemoteAuthStatus } from '../../cliproxy/remote-auth-fetcher';
+import { loadOrCreateUnifiedConfig } from '../../config/unified-config-loader';
+import { tryKiroImport } from '../../cliproxy/auth/kiro-import';
+import { getProviderTokenDir } from '../../cliproxy/auth/token-manager';
 import type { CLIProxyProvider } from '../../cliproxy/types';
 
 const router = Router();
@@ -268,12 +271,20 @@ router.delete('/accounts/:provider/:accountId', (req: Request, res: Response): v
  */
 router.post('/:provider/start', async (req: Request, res: Response): Promise<void> => {
   const { provider } = req.params;
-  const { nickname } = req.body;
+  const { nickname, noIncognito: noIncognitoBody } = req.body;
 
   // Validate provider
   if (!validProviders.includes(provider as CLIProxyProvider)) {
     res.status(400).json({ error: `Invalid provider: ${provider}` });
     return;
+  }
+
+  // Check Kiro no-incognito setting from config (or request body)
+  // Default to true (use normal browser) for reliability - incognito often fails
+  let noIncognito = true;
+  if (provider === 'kiro') {
+    const config = loadOrCreateUnifiedConfig();
+    noIncognito = noIncognitoBody ?? config.cliproxy?.kiro_no_incognito ?? true;
   }
 
   try {
@@ -283,6 +294,7 @@ router.post('/:provider/start', async (req: Request, res: Response): Promise<voi
       headless: false, // Force interactive mode
       nickname: nickname || undefined,
       fromUI: true, // Enable project selection prompt in UI
+      noIncognito, // Kiro: use normal browser if enabled
     });
 
     if (account) {
@@ -337,6 +349,54 @@ router.post('/project-selection/:sessionId', (req: Request, res: Response): void
     res.json({ success: true });
   } else {
     res.status(404).json({ error: 'No pending project selection for this session' });
+  }
+});
+
+/**
+ * POST /api/cliproxy/auth/kiro/import - Import Kiro token from Kiro IDE
+ * Alternative auth path when OAuth callback fails to redirect properly
+ */
+router.post('/kiro/import', async (_req: Request, res: Response): Promise<void> => {
+  // Check if remote mode is enabled - import not available remotely
+  const target = getProxyTarget();
+  if (target.isRemote) {
+    res.status(501).json({
+      error: 'Kiro import not available in remote mode',
+    });
+    return;
+  }
+
+  try {
+    const tokenDir = getProviderTokenDir('kiro');
+    const result = await tryKiroImport(tokenDir, false);
+
+    if (result.success) {
+      // Re-initialize accounts to pick up new token
+      initializeAccounts();
+
+      // Get the newly added account
+      const accounts = getProviderAccounts('kiro');
+      const newAccount = accounts.find((a) => a.isDefault) || accounts[0];
+
+      res.json({
+        success: true,
+        account: newAccount
+          ? {
+              id: newAccount.id,
+              email: newAccount.email,
+              provider: 'kiro',
+              isDefault: newAccount.isDefault,
+            }
+          : null,
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: result.error || 'Failed to import Kiro token',
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
   }
 });
 

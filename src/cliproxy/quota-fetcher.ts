@@ -94,6 +94,11 @@ interface FetchAvailableModelsResponse {
 function readAccessToken(provider: CLIProxyProvider, accountId: string): string | null {
   const authDir = getAuthDir();
 
+  // Check if auth directory exists
+  if (!fs.existsSync(authDir)) {
+    return null;
+  }
+
   // Account ID format: email with @ and . replaced by _
   // Try to find matching token file
   const files = fs.readdirSync(authDir);
@@ -232,10 +237,11 @@ async function fetchAvailableModels(accessToken: string, projectId: string): Pro
         const remaining =
           quotaInfo.remainingFraction ?? quotaInfo.remaining_fraction ?? quotaInfo.remaining;
 
-        if (typeof remaining !== 'number') continue;
+        // Skip invalid values (NaN, Infinity, non-numbers)
+        if (typeof remaining !== 'number' || !isFinite(remaining)) continue;
 
-        // Convert to percentage (0-100)
-        const percentage = Math.round(remaining * 100);
+        // Convert to percentage (0-100) and clamp to valid range
+        const percentage = Math.max(0, Math.min(100, Math.round(remaining * 100)));
 
         // Extract reset time
         const resetTime = quotaInfo.resetTime || quotaInfo.reset_time || null;

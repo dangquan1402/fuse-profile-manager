@@ -27,8 +27,9 @@ import {
 } from '../../management/oauth-port-diagnostics';
 import { OAuthOptions, OAUTH_CALLBACK_PORTS, getOAuthConfig } from './auth-types';
 import { isHeadlessEnvironment, killProcessOnPort, showStep } from './environment-detector';
-import { getProviderTokenDir, isAuthenticated } from './token-manager';
+import { getProviderTokenDir, isAuthenticated, registerAccountFromToken } from './token-manager';
 import { executeOAuthProcess } from './oauth-process';
+import { importKiroToken } from './kiro-import';
 
 /**
  * Prompt user to add another account
@@ -126,7 +127,18 @@ export async function triggerOAuth(
   options: OAuthOptions = {}
 ): Promise<AccountInfo | null> {
   const oauthConfig = getOAuthConfig(provider);
-  const { verbose = false, add = false, nickname, fromUI = false } = options;
+  const { verbose = false, add = false, nickname, fromUI = false, noIncognito = true } = options;
+
+  // Handle --import flag: skip OAuth and import from Kiro IDE directly
+  if (options.import && provider === 'kiro') {
+    const tokenDir = getProviderTokenDir(provider);
+    const success = await importKiroToken(verbose);
+    if (success) {
+      return registerAccountFromToken(provider, tokenDir, nickname);
+    }
+    return null;
+  }
+
   const callbackPort = OAUTH_PORTS[provider];
   const isCLI = !fromUI;
   const headless = options.headless ?? isHeadlessEnvironment();
@@ -175,6 +187,10 @@ export async function triggerOAuth(
   if (headless) {
     args.push('--no-browser');
   }
+  // Kiro-specific: --no-incognito to use normal browser (saves login credentials)
+  if (provider === 'kiro' && noIncognito) {
+    args.push('--no-incognito');
+  }
 
   // Show step based on flow type
   if (isDeviceCodeFlow) {
@@ -198,7 +214,7 @@ export async function triggerOAuth(
   }
 
   // Execute OAuth process
-  return executeOAuthProcess({
+  const account = await executeOAuthProcess({
     provider,
     binaryPath,
     args,
@@ -210,6 +226,16 @@ export async function triggerOAuth(
     isCLI,
     nickname,
   });
+
+  // Show hint for Kiro users about --no-incognito option (first-time auth only)
+  if (account && provider === 'kiro' && !noIncognito) {
+    console.log('');
+    console.log(info('Tip: To save your AWS login credentials for future sessions:'));
+    console.log('       Use: ccs kiro --no-incognito');
+    console.log('       Or enable "Kiro: Use normal browser" in: ccs config');
+  }
+
+  return account;
 }
 
 /**

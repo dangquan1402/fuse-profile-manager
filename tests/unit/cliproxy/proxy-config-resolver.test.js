@@ -255,6 +255,58 @@ describe('proxy-config-resolver', () => {
       expect(config.remoteOnly).toBe(true);
       expect(config.fallbackEnabled).toBe(false);
     });
+
+    // Tests for YAML enabled:false handling (Bug fix validation)
+    describe('YAML remote.enabled handling', () => {
+      it('should block remote mode when YAML remote.enabled is false', () => {
+        const { config } = resolveProxyConfig([], {
+          remote: { enabled: false, host: 'yaml-host.example.com' },
+        });
+        expect(config.mode).toBe('local');
+        // Host from YAML should NOT be used when enabled: false
+      });
+
+      it('should allow remote mode when YAML remote.enabled is true', () => {
+        const { config } = resolveProxyConfig([], {
+          remote: { enabled: true, host: 'yaml-host.example.com' },
+        });
+        expect(config.mode).toBe('remote');
+        expect(config.host).toBe('yaml-host.example.com');
+      });
+
+      it('should allow remote mode when YAML remote.enabled is undefined (backwards compat)', () => {
+        const { config } = resolveProxyConfig([], {
+          remote: { host: 'yaml-host.example.com' },
+        });
+        expect(config.mode).toBe('remote');
+        expect(config.host).toBe('yaml-host.example.com');
+      });
+
+      it('should allow CLI --proxy-host to override YAML enabled:false', () => {
+        const { config } = resolveProxyConfig(['--proxy-host', 'cli-host'], {
+          remote: { enabled: false, host: 'yaml-host' },
+        });
+        expect(config.mode).toBe('remote');
+        expect(config.host).toBe('cli-host');
+      });
+
+      it('should allow ENV CCS_PROXY_HOST to override YAML enabled:false', () => {
+        process.env.CCS_PROXY_HOST = 'env-host';
+        const { config } = resolveProxyConfig([], {
+          remote: { enabled: false, host: 'yaml-host' },
+        });
+        expect(config.mode).toBe('remote');
+        expect(config.host).toBe('env-host');
+      });
+
+      it('should force local mode with --local-proxy even when YAML enabled:true', () => {
+        const { config } = resolveProxyConfig(['--local-proxy'], {
+          remote: { enabled: true, host: 'yaml-host' },
+        });
+        expect(config.mode).toBe('local');
+        expect(config.forceLocal).toBe(true);
+      });
+    });
   });
 
   describe('hasProxyFlags', () => {

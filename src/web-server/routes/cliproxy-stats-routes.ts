@@ -16,7 +16,7 @@ import { fetchAccountQuota } from '../../cliproxy/quota-fetcher';
 import type { CLIProxyProvider } from '../../cliproxy/types';
 import {
   getCliproxyWritablePath,
-  getConfigPath,
+  getCliproxyConfigPath,
   getAuthDir,
 } from '../../cliproxy/config-generator';
 import { getProxyStatus as getProxyProcessStatus, stopProxy } from '../../cliproxy/session-tracker';
@@ -274,7 +274,7 @@ router.get('/error-logs/:name', async (req: Request, res: Response): Promise<voi
  */
 router.get('/config.yaml', async (_req: Request, res: Response): Promise<void> => {
   try {
-    const configPath = getConfigPath();
+    const configPath = getCliproxyConfigPath();
     if (!fs.existsSync(configPath)) {
       res.status(404).json({ error: 'Config file not found' });
       return;
@@ -301,7 +301,7 @@ router.put('/config.yaml', async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const configPath = getConfigPath();
+    const configPath = getCliproxyConfigPath();
 
     // Ensure parent directory exists
     const configDir = path.dirname(configPath);

@@ -1,3 +1,105 @@
+## [7.9.0](https://github.com/kaitranntt/ccs/compare/v7.8.0...v7.9.0) (2025-12-27)
+
+### Features
+
+* **dashboard:** add Import from Kiro IDE button ([5f59d71](https://github.com/kaitranntt/ccs/commit/5f59d710a687aa23b22f470114fc763bf1412fbd))
+* **ui:** add auth profile management to Dashboard ([fa8830e](https://github.com/kaitranntt/ccs/commit/fa8830e1ce97b6f0bb5f89c93325414a15412369))
+
+### Bug Fixes
+
+* **cliproxy:** ensure version sync after binary update ([29f1930](https://github.com/kaitranntt/ccs/commit/29f19308e627f46a5144521f8f2c75e9ff746f6a))
+* **config:** use safe inline logic in getSettingsPath() legacy fallback ([a4a473a](https://github.com/kaitranntt/ccs/commit/a4a473ac93a3adf9b51a0e9371bbd48fa7363157))
+* **dashboard:** support unified config.yaml in web server routes ([0c69740](https://github.com/kaitranntt/ccs/commit/0c697406947ef37f194db26e31d5822cc7e12463)), closes [#206](https://github.com/kaitranntt/ccs/issues/206)
+* improve type safety and error handling in config-manager ([8a3c5a4](https://github.com/kaitranntt/ccs/commit/8a3c5a446beb197148a132900a88f09043cbab55)), closes [#215](https://github.com/kaitranntt/ccs/issues/215)
+* **kiro:** add fallback import from Kiro IDE when OAuth callback redirects ([add4aa5](https://github.com/kaitranntt/ccs/commit/add4aa55c752be54164b42b0c108f54c24944570)), closes [#212](https://github.com/kaitranntt/ccs/issues/212)
+* run RecoveryManager before early-exit commands and improve config handling ([0be3977](https://github.com/kaitranntt/ccs/commit/0be397784525275d0bbcc94877942f8963ca3d33)), closes [#214](https://github.com/kaitranntt/ccs/issues/214)
+* **test:** remove redundant build from beforeAll hook ([67a48a8](https://github.com/kaitranntt/ccs/commit/67a48a8305125959ecab468f117cc9de0badddd5))
+* **tests:** update test files for renamed getCliproxyConfigPath function ([ec2ee0a](https://github.com/kaitranntt/ccs/commit/ec2ee0a36d8498fb596d2e3ef793ce89a9f254f8))
+* wrap RecoveryManager in try-catch to prevent blocking CLI commands ([2fff770](https://github.com/kaitranntt/ccs/commit/2fff770b6bc67616e855cc8dc940751bd1267a67)), closes [#215](https://github.com/kaitranntt/ccs/issues/215)
+
+### Documentation
+
+* update design principles and add feature interface requirements ([c200334](https://github.com/kaitranntt/ccs/commit/c20033473b150689ff4c581d5b4b2a6e12adb758))
+
+## [7.8.0](https://github.com/kaitranntt/ccs/compare/v7.7.1...v7.8.0) (2025-12-26)
+
+### Features
+
+* **api:** add auth tokens REST endpoints ([ffd4996](https://github.com/kaitranntt/ccs/commit/ffd499698e03f1849a0deef3d289c08079a0951e))
+* **cli:** add tokens command for auth token management ([0c6491c](https://github.com/kaitranntt/ccs/commit/0c6491c9d27a3bfb1ecc8c1627d1e1a70f59220a))
+* **cliproxy:** add customizable auth token manager ([c4f0916](https://github.com/kaitranntt/ccs/commit/c4f09168ff35e52c8613a3181a86e4e4e5392dfc))
+* **cliproxy:** add variant port isolation for concurrent proxy instances ([0bcaf4b](https://github.com/kaitranntt/ccs/commit/0bcaf4bc681e26bd13485678c88b55f4ac471eed))
+* **ui:** add auth tokens settings tab ([71335a6](https://github.com/kaitranntt/ccs/commit/71335a61935971c7621fefcef973cc2b42e313fd))
+* **ui:** add Settings link to control panel key hint ([7a6341f](https://github.com/kaitranntt/ccs/commit/7a6341f0d9a8dffdcbb318cf34f3dbbfbea70cb5))
+
+### Bug Fixes
+
+* **cliproxy:** use auth inheritance in stats-fetcher and config-generator ([133aeba](https://github.com/kaitranntt/ccs/commit/133aebaabc2295b75c13a14a448c2cc60d471363))
+* **dashboard:** read accounts from unified config ([8d7845d](https://github.com/kaitranntt/ccs/commit/8d7845d67fb156671713888726d631415d0f4f9c)), closes [#203](https://github.com/kaitranntt/ccs/issues/203)
+* **dashboard:** support unified config across health checks and settings ([9722e19](https://github.com/kaitranntt/ccs/commit/9722e1905dd25b9dd4d602e860ba36586db043b9)), closes [#203](https://github.com/kaitranntt/ccs/issues/203)
+* **dashboard:** support unified config in overview and file watcher ([25f0ddb](https://github.com/kaitranntt/ccs/commit/25f0ddb9ddb19f9eb75c880b7c878d840cb2a494)), closes [#203](https://github.com/kaitranntt/ccs/issues/203)
+* **doctor:** comprehensive health check fixes ([ac74550](https://github.com/kaitranntt/ccs/commit/ac745503e2a1644b2cb3542b917dbce5e6109200))
+* **doctor:** prefer config.yaml and make settings files optional ([4fca7d1](https://github.com/kaitranntt/ccs/commit/4fca7d16edc6985d14422a21d45dccd619ef9aba))
+* **ui:** initialize colors early for consistent status output ([e38af6a](https://github.com/kaitranntt/ccs/commit/e38af6ad6e2f65a73b4d16f6b4f0cead2eb7374d)), closes [#201](https://github.com/kaitranntt/ccs/issues/201)
+* **ui:** simplify config header and add explicit save button ([7e031b5](https://github.com/kaitranntt/ccs/commit/7e031b5097b49f0cfc07334d31b83af41fac9669))
+* **ui:** use effective management secret in control panel embed ([a762563](https://github.com/kaitranntt/ccs/commit/a762563f1b1fa8d984b7c9abf6b3b3c7f8ab6f97))
+
+### Tests
+
+* **cliproxy:** add comprehensive auth token test suite ([ed6776a](https://github.com/kaitranntt/ccs/commit/ed6776aadcf06c0c8572babe1ddc1de4e0902a17))
+* **cliproxy:** add integration tests for variant port isolation ([8f120b5](https://github.com/kaitranntt/ccs/commit/8f120b515f0b71a2730c7affb50c9b148c00e502)), closes [#184](https://github.com/kaitranntt/ccs/issues/184)
+
+## [7.7.1](https://github.com/kaitranntt/ccs/compare/v7.7.0...v7.7.1) (2025-12-26)
+
+### Bug Fixes
+
+* **health:** correct CLIProxy port detection on macOS/Linux ([d1a0ebe](https://github.com/kaitranntt/ccs/commit/d1a0ebee61b8987df85c328d359967e46d1e5226))
+* **health:** use prefix matching for Linux process name truncation ([91e7b9f](https://github.com/kaitranntt/ccs/commit/91e7b9f93787e5b2d45bffdaed75e75c151281e4))
+
+## [7.7.0](https://github.com/kaitranntt/ccs/compare/v7.6.0...v7.7.0) (2025-12-25)
+
+### Features
+
+* **api:** add Minimax, DeepSeek, Qwen provider presets ([e7066b9](https://github.com/kaitranntt/ccs/commit/e7066b99972129114fb223c6cde40f3127599ae6)), closes [#123](https://github.com/kaitranntt/ccs/issues/123)
+* **kiro:** add UI toggle and auth hint for --no-incognito option ([083e674](https://github.com/kaitranntt/ccs/commit/083e67426c382ce534bed4830bedbede94cfdca7))
+* **kiro:** improve auth UX with normal browser default and URL display ([df0c947](https://github.com/kaitranntt/ccs/commit/df0c94781e5f198f867723e1b5bccf17d6c4b250))
+
+### Bug Fixes
+
+* **cliproxy:** preserve user API keys during config regeneration ([2b4d21e](https://github.com/kaitranntt/ccs/commit/2b4d21e8ae615c840d76007d733017d375e6036f)), closes [#200](https://github.com/kaitranntt/ccs/issues/200)
+* **core:** address all code review issues from PR [#199](https://github.com/kaitranntt/ccs/issues/199) ([f2a4200](https://github.com/kaitranntt/ccs/commit/f2a4200625e13754c7f79738dba0562e8ff27895))
+* **kiro:** add --no-incognito option for normal browser auth ([13e4bac](https://github.com/kaitranntt/ccs/commit/13e4baca228313462b3e0e83d0b97594654a989b))
+* **profiles:** prevent GLM auth regression from first-time install detection ([cc2d62d](https://github.com/kaitranntt/ccs/commit/cc2d62db38977fd5a0597388c2882e3600e5e179)), closes [#195](https://github.com/kaitranntt/ccs/issues/195)
+* **qwen:** inherit stdin for Device Code flows to enable interactive prompts ([c811fdf](https://github.com/kaitranntt/ccs/commit/c811fdfc7914cc3bde3811ea04281055ebb3e273)), closes [#188](https://github.com/kaitranntt/ccs/issues/188)
+* **ui:** add gemini-3-flash-preview to model dropdowns ([50653d1](https://github.com/kaitranntt/ccs/commit/50653d1054f89f0eaff24a6d8f471266269383b6)), closes [#194](https://github.com/kaitranntt/ccs/issues/194)
+* **ui:** respect initialMode in profile create dialog ([db3662b](https://github.com/kaitranntt/ccs/commit/db3662b47986269ba9c12385021f4aa4bd1633f6))
+
+### Code Refactoring
+
+* **paths:** use expandPath() consistently for cross-platform path handling ([adb6222](https://github.com/kaitranntt/ccs/commit/adb6222bc671c3c4ade1bb019705a985de1947fa))
+
+### Tests
+
+* **auth:** add comprehensive tests for GLM auth persistence fix ([92a79aa](https://github.com/kaitranntt/ccs/commit/92a79aa78ba14aaf2b22f10eaab23f6e04220b17))
+
+## [7.6.0](https://github.com/kaitranntt/ccs/compare/v7.5.1...v7.6.0) (2025-12-24)
+
+### Features
+
+* **cli:** add config command hints to help and error messages ([e981c39](https://github.com/kaitranntt/ccs/commit/e981c391a26d51de749099ca844915ffc06976e2))
+* **setup:** add first-time setup wizard for config initialization ([cec616d](https://github.com/kaitranntt/ccs/commit/cec616d530d9cf61a3a45032465b01e9a4037558)), closes [#142](https://github.com/kaitranntt/ccs/issues/142)
+
+### Bug Fixes
+
+* **cliproxy:** respect enabled:false and use protocol-based port defaults ([a99b6eb](https://github.com/kaitranntt/ccs/commit/a99b6eb93f06c6788bbf13a196bbca908fa06f4c))
+* **config:** improve edge case handling for config initialization ([ca78993](https://github.com/kaitranntt/ccs/commit/ca78993e7612143b3193e3cec3f8976be909e2d6))
+* **ghcp:** display device code during OAuth device code flow ([46f1699](https://github.com/kaitranntt/ccs/commit/46f1699b1c6f716d06c1eaa3dc6aac94dd5761ec)), closes [#189](https://github.com/kaitranntt/ccs/issues/189)
+
+### Code Refactoring
+
+* **config:** migrate to config.yaml as primary format ([b34469d](https://github.com/kaitranntt/ccs/commit/b34469d75fd2c2b7fd4f4cc4c0cc28885001649b)), closes [#142](https://github.com/kaitranntt/ccs/issues/142)
+* **ghcp:** remove unused device code session management ([5de6ccc](https://github.com/kaitranntt/ccs/commit/5de6cccee08aa06d6533181a1db189a595c5e123))
+
 ## [7.5.1](https://github.com/kaitranntt/ccs/compare/v7.5.0...v7.5.1) (2025-12-23)
 
 ### Bug Fixes

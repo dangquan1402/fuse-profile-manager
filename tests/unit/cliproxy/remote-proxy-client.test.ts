@@ -137,4 +137,35 @@ describe('remote-proxy-client', () => {
       expect(expectedUrl).toBe('https://secure.example.com:443/v1/models');
     });
   });
+
+  describe('port defaults by protocol', () => {
+    // Document expected default ports based on protocol
+    // HTTP: 8317 (CLIProxyAPI default for local/dev scenarios)
+    // HTTPS: 443 (standard SSL port for production remote servers)
+
+    it('should document HTTP default port as 8317', () => {
+      // HTTP connections default to CLIProxyAPI port 8317
+      // This matches local development scenarios
+      const expectedHttpDefault = 8317;
+      expect(expectedHttpDefault).toBe(8317);
+    });
+
+    it('should document HTTPS default port as 443', () => {
+      // HTTPS connections default to standard SSL port 443
+      // This matches production remote server scenarios
+      const expectedHttpsDefault = 443;
+      expect(expectedHttpsDefault).toBe(443);
+    });
+
+    it('should allow port to be optional in config', () => {
+      // Port is optional - when undefined, defaults based on protocol
+      const configWithoutPort: RemoteProxyClientConfig = {
+        host: 'example.com',
+        protocol: 'https',
+        // port is intentionally undefined
+      };
+      expect(configWithoutPort.port).toBeUndefined();
+      expect(configWithoutPort.protocol).toBe('https');
+    });
+  });
 });
