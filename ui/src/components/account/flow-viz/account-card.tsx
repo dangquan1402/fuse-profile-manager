@@ -2,9 +2,11 @@
  * Account Card Component for Flow Visualization
  */
 
-import { cn } from '@/lib/utils';
+import { cn, sortModelsByPriority, formatResetTime, getEarliestResetTime } from '@/lib/utils';
 import { PRIVACY_BLUR_CLASS } from '@/contexts/privacy-context';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, Loader2, Clock } from 'lucide-react';
+import { useAccountQuota } from '@/hooks/use-cliproxy-stats';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import type { AccountData, DragOffset } from './types';
 import { cleanEmail } from './utils';
@@ -74,6 +76,18 @@ export function AccountCard({
   const borderColor = getBorderColorStyle(zone, account.color);
   const connectorPosition = CONNECTOR_POSITION_MAP[zone];
 
+  // Quota for AGY accounts
+  const isAgy = account.provider === 'agy';
+  const { data: quota, isLoading: quotaLoading } = useAccountQuota(
+    account.provider,
+    account.id,
+    isAgy
+  );
+  const avgQuota =
+    quota?.success && quota.models.length > 0
+      ? Math.round(quota.models.reduce((sum, m) => sum + m.percentage, 0) / quota.models.length)
+      : null;
+
   return (
     <div
       data-account-index={originalIndex}
@@ -114,6 +128,82 @@ export function AccountCard({
         failure={account.failureCount}
         showDetails={showDetails}
       />
+      {/* Quota bar for AGY accounts */}
+      {isAgy && (
+        <div className="mt-2 px-0.5">
+          {quotaLoading ? (
+            <div className="flex items-center gap-1 text-[8px] text-muted-foreground">
+              <Loader2 className="w-2.5 h-2.5 animate-spin" />
+              <span>Quota...</span>
+            </div>
+          ) : avgQuota !== null ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="space-y-0.5 cursor-help">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[8px] text-muted-foreground/70 uppercase font-bold tracking-tight">
+                        Quota
+                      </span>
+                      <span
+                        className={cn(
+                          'text-[10px] font-mono font-bold',
+                          avgQuota > 50
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : avgQuota > 20
+                              ? 'text-amber-500'
+                              : 'text-red-500'
+                        )}
+                      >
+                        {avgQuota}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-muted dark:bg-zinc-800/50 h-1 rounded-full overflow-hidden">
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all',
+                          avgQuota > 50
+                            ? 'bg-emerald-500'
+                            : avgQuota > 20
+                              ? 'bg-amber-500'
+                              : 'bg-red-500'
+                        )}
+                        style={{ width: `${avgQuota}%` }}
+                      />
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <div className="text-xs space-y-1">
+                    <p className="font-medium">Model Quotas:</p>
+                    {sortModelsByPriority(quota?.models || []).map((m) => (
+                      <div key={m.name} className="flex justify-between gap-4">
+                        <span className="truncate">{m.displayName || m.name}</span>
+                        <span className="font-mono">{m.percentage}%</span>
+                      </div>
+                    ))}
+                    {(() => {
+                      const resetTime = getEarliestResetTime(quota?.models || []);
+                      return resetTime ? (
+                        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
+                          <Clock className="w-3 h-3 text-blue-400" />
+                          <span className="text-blue-400 font-medium">
+                            Resets {formatResetTime(resetTime)}
+                          </span>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : quota?.error ? (
+            <div className="text-[8px] text-muted-foreground/60 truncate" title={quota.error}>
+              {quota.error.length > 20 ? `${quota.error.slice(0, 18)}...` : quota.error}
+            </div>
+          ) : null}
+        </div>
+      )}
       <div
         className={cn(
           'absolute w-3 h-3 rounded-full transform z-20 transition-colors border',

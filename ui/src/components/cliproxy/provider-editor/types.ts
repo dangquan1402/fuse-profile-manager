@@ -39,6 +39,8 @@ export interface AccountItemProps {
   onRemove: () => void;
   isRemoving?: boolean;
   privacyMode?: boolean;
+  /** Show quota bar (only for 'agy' provider) */
+  showQuota?: boolean;
 }
 
 export interface ModelMappingValues {

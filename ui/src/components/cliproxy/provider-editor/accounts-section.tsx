@@ -17,6 +17,8 @@ interface AccountsSectionProps {
   onRemoveAccount: (accountId: string) => void;
   isRemovingAccount?: boolean;
   privacyMode?: boolean;
+  /** Show quota bars for accounts (only applicable for 'agy' provider) */
+  showQuota?: boolean;
   /** Kiro-specific: show "use normal browser" toggle */
   isKiro?: boolean;
   kiroNoIncognito?: boolean;
@@ -31,6 +33,7 @@ export function AccountsSection({
   onRemoveAccount,
   isRemovingAccount,
   privacyMode,
+  showQuota,
   isKiro,
   kiroNoIncognito,
   onKiroNoIncognitoChange,
@@ -64,6 +67,7 @@ export function AccountsSection({
               onRemove={() => onRemoveAccount(account.id)}
               isRemoving={isRemovingAccount}
               privacyMode={privacyMode}
+              showQuota={showQuota}
             />
           ))}
         </div>

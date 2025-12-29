@@ -54,3 +54,65 @@ export function getProviderColor(provider: string): string {
   const normalized = provider.toLowerCase();
   return PROVIDER_COLORS[normalized] || getModelColor(provider);
 }
+
+/**
+ * Sort models with Claude models first, then alphabetically
+ * Prioritizes: Claude > Gemini > GPT > Other (alphabetically)
+ */
+export function sortModelsByPriority<T extends { name: string; displayName?: string }>(
+  models: T[]
+): T[] {
+  const getPriority = (model: T): number => {
+    const name = (model.displayName || model.name).toLowerCase();
+    if (name.includes('claude')) return 0;
+    if (name.includes('gemini')) return 1;
+    if (name.includes('gpt')) return 2;
+    return 3;
+  };
+
+  return [...models].sort((a, b) => {
+    const priorityDiff = getPriority(a) - getPriority(b);
+    if (priorityDiff !== 0) return priorityDiff;
+    // Same priority: sort alphabetically by display name
+    const nameA = (a.displayName || a.name).toLowerCase();
+    const nameB = (b.displayName || b.name).toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+}
+
+/**
+ * Format reset time as relative time (e.g., "in 2h 30m")
+ */
+export function formatResetTime(resetTime: string | null): string | null {
+  if (!resetTime) return null;
+  try {
+    const reset = new Date(resetTime);
+    const now = new Date();
+    const diff = reset.getTime() - now.getTime();
+    if (diff <= 0) return 'soon';
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hours > 0) return `in ${hours}h ${minutes}m`;
+    return `in ${minutes}m`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get earliest reset time from models array
+ */
+export function getEarliestResetTime<T extends { resetTime: string | null }>(
+  models: T[]
+): string | null {
+  return models.reduce(
+    (earliest, m) => {
+      if (!m.resetTime) return earliest;
+      if (!earliest) return m.resetTime;
+      return new Date(m.resetTime) < new Date(earliest) ? m.resetTime : earliest;
+    },
+    null as string | null
+  );
+}

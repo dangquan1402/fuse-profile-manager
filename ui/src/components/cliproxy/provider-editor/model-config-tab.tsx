@@ -133,6 +133,7 @@ export function ModelConfigTab({
           onRemoveAccount={onRemoveAccount}
           isRemovingAccount={isRemovingAccount}
           privacyMode={privacyMode}
+          showQuota={provider === 'agy'}
           isKiro={isKiro}
           kiroNoIncognito={kiroNoIncognito}
           onKiroNoIncognitoChange={saveKiroNoIncognito}
