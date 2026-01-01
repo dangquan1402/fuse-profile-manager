@@ -1,3 +1,14 @@
+## [7.12.2](https://github.com/kaitranntt/ccs/compare/v7.12.1...v7.12.2) (2026-01-01)
+
+### Bug Fixes
+
+* **cliproxy:** add kiro/ghcp provider mappings to discoverExistingAccounts ([4386e91](https://github.com/kaitranntt/ccs/commit/4386e9122d92c7c32d8f11c4216631a473b5c5dd)), closes [#242](https://github.com/kaitranntt/ccs/issues/242)
+* **ui:** show min Claude quota instead of avg all models ([a011908](https://github.com/kaitranntt/ccs/commit/a011908b3cf439b4a6e0a88ebaef03b8e527fb68))
+
+### Tests
+
+* **cliproxy:** add unit tests for discoverExistingAccounts ([43f1a98](https://github.com/kaitranntt/ccs/commit/43f1a9890e20387fdd8f059a778e345e9c3eacc2))
+
 ## [7.12.1](https://github.com/kaitranntt/ccs/compare/v7.12.0...v7.12.1) (2026-01-01)
 
 ### Bug Fixes
