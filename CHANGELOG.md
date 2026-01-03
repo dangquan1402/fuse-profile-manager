@@ -1,3 +1,27 @@
+## [7.13.0](https://github.com/kaitranntt/ccs/compare/v7.12.2...v7.13.0) (2026-01-03)
+
+### Features
+
+* **minimax:** Add full MiniMax M2.1 support ([bd5c9a0](https://github.com/kaitranntt/ccs/commit/bd5c9a0033e1c4df8aef90db194a768f55e9eab8))
+* **minimax:** Add mm profile and migration support ([267599d](https://github.com/kaitranntt/ccs/commit/267599d09d691cb38b7a9f3b201ce1e3761bfe08))
+
+### Bug Fixes
+
+* **accounts:** integrate CLIProxy OAuth accounts into API endpoint ([eebcb7b](https://github.com/kaitranntt/ccs/commit/eebcb7b10351ce9c939ffcc769d354bc463a8ee1))
+* **migrate:** Add rename-profile flag handling ([4dace51](https://github.com/kaitranntt/ccs/commit/4dace513eab3ffc28cf67fc1db652f5908403973))
+* **minimax:** Add MiniMax placeholder to DEFAULT_PLACEHOLDERS ([46e0995](https://github.com/kaitranntt/ccs/commit/46e09950e8f9f612ce819e6191e63279b2fb3b1f))
+* **minimax:** prevent double-resolve race condition and align placeholder ([a59ad0e](https://github.com/kaitranntt/ccs/commit/a59ad0e8c63b4159a35558dcae03ed4a7ca42c6f))
+* **minimax:** restore migrate-command, remove broken migration file, fix validator typo ([c48f798](https://github.com/kaitranntt/ccs/commit/c48f798f3e375a25cf012f7b6f9c1853c8f99836))
+
+### Documentation
+
+* **minimax:** Update review_pr.md with fix status ([5d34bd6](https://github.com/kaitranntt/ccs/commit/5d34bd6ec2cd6a1a43fa3c62af820edb29442325))
+
+### Code Refactoring
+
+* **api-key-validator:** extract shared validation logic, remove unnecessary comments ([a00cf36](https://github.com/kaitranntt/ccs/commit/a00cf3691ef551f24dcac149c4473d9fdcf28043))
+* **minimax:** Rename to 'mm' for brevity ([2b549f5](https://github.com/kaitranntt/ccs/commit/2b549f5b3dddbd17f40ef987badf4715d89297c7))
+
 ## [7.12.2](https://github.com/kaitranntt/ccs/compare/v7.12.1...v7.12.2) (2026-01-01)
 
 ### Bug Fixes
