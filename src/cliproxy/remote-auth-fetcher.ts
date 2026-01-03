@@ -6,7 +6,7 @@
 import {
   getProxyTarget,
   buildProxyUrl,
-  buildProxyHeaders,
+  buildManagementHeaders,
   ProxyTarget,
 } from './proxy-target-resolver';
 
@@ -81,6 +81,7 @@ export async function fetchRemoteAuthStatus(target?: ProxyTarget): Promise<Remot
   }
 
   const url = buildProxyUrl(proxyTarget, '/v0/management/auth-files');
+  const headers = buildManagementHeaders(proxyTarget);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REMOTE_FETCH_TIMEOUT_MS);
@@ -88,7 +89,7 @@ export async function fetchRemoteAuthStatus(target?: ProxyTarget): Promise<Remot
   try {
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: buildProxyHeaders(proxyTarget),
+      headers,
     });
 
     clearTimeout(timeoutId);
