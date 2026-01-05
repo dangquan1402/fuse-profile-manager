@@ -16,6 +16,7 @@ import {
   RotateCw,
   ArrowUp,
   Globe,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -75,6 +76,7 @@ export function ProxyStatusWidget() {
   const isRunning = status?.running ?? false;
   const isActioning = startProxy.isPending || stopProxy.isPending;
   const hasUpdate = updateCheck?.hasUpdate ?? false;
+  const isUnstable = updateCheck?.isStable === false;
 
   // Build remote display info
   const remoteDisplayHost = isRemoteMode
@@ -191,29 +193,35 @@ export function ProxyStatusWidget() {
           {/* Control buttons when running */}
           <div className="mt-2 flex items-center gap-2">
             <Button
-              variant={hasUpdate ? 'default' : 'outline'}
+              variant={hasUpdate || isUnstable ? 'default' : 'outline'}
               size="sm"
               className={cn(
                 'h-7 text-xs gap-1 flex-1',
-                hasUpdate &&
-                  'bg-sidebar-accent hover:bg-sidebar-accent/90 text-sidebar-accent-foreground'
+                isUnstable
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                  : hasUpdate &&
+                      'bg-sidebar-accent hover:bg-sidebar-accent/90 text-sidebar-accent-foreground'
               )}
               onClick={handleRestart}
               disabled={isActioning}
               title={
-                hasUpdate
-                  ? `Restart to update: v${updateCheck?.currentVersion} -> v${updateCheck?.latestVersion}`
-                  : 'Restart CLIProxy service'
+                isUnstable
+                  ? `Current v${updateCheck?.currentVersion} is unstable. Restart to downgrade to stable v${updateCheck?.maxStableVersion}`
+                  : hasUpdate
+                    ? `Restart to update: v${updateCheck?.currentVersion} -> v${updateCheck?.latestVersion}`
+                    : 'Restart CLIProxy service'
               }
             >
               {isActioning ? (
                 <RefreshCw className="w-3 h-3 animate-spin" />
+              ) : isUnstable ? (
+                <AlertTriangle className="w-3 h-3" />
               ) : hasUpdate ? (
                 <ArrowUp className="w-3 h-3" />
               ) : (
                 <RotateCw className="w-3 h-3" />
               )}
-              {hasUpdate ? 'Update' : 'Restart'}
+              {isUnstable ? 'Downgrade' : hasUpdate ? 'Update' : 'Restart'}
             </Button>
             <Button
               variant="outline"
@@ -255,7 +263,20 @@ export function ProxyStatusWidget() {
       {/* Version sync indicator */}
       {updateCheck?.currentVersion && (
         <div className="mt-2 pt-2 border-t border-muted flex items-center justify-between text-[10px] text-muted-foreground/70">
-          <span>v{updateCheck.currentVersion}</span>
+          <span className="flex items-center gap-1">
+            {isUnstable && (
+              <AlertTriangle
+                className="w-3 h-3 text-amber-500"
+                title={updateCheck.stabilityMessage}
+              />
+            )}
+            <span className={isUnstable ? 'text-amber-600 dark:text-amber-400' : ''}>
+              v{updateCheck.currentVersion}
+            </span>
+            {isUnstable && (
+              <span className="text-amber-600/70 dark:text-amber-400/70">(unstable)</span>
+            )}
+          </span>
           {updateCheck.checkedAt && (
             <span title={new Date(updateCheck.checkedAt).toLocaleString()}>
               Synced {formatTimeAgo(updateCheck.checkedAt)}
