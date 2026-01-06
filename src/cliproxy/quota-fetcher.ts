@@ -111,42 +111,18 @@ interface TokenRefreshResponse {
   error_description?: string;
 }
 
-/**
- * Detect account tier from quota API model list.
- * Ultra accounts have access to experimental/preview models.
- * Pro accounts have standard model access.
- * Free/unknown accounts have limited model access.
- */
-export function detectTier(quotaResult: QuotaResult): AccountTier {
-  if (!quotaResult.success || quotaResult.models.length === 0) {
-    return 'unknown';
-  }
-
-  const modelNames = quotaResult.models.map((m) => m.name.toLowerCase());
-
-  // Ultra indicators: experimental, preview, ultra in name
-  // Note: 2.5-pro is a standard pro model, not ultra
-  const ultraIndicators = ['ultra', 'experimental', 'preview', '3-ultra'];
-  const hasUltra = modelNames.some((name) =>
-    ultraIndicators.some((indicator) => name.includes(indicator))
-  );
-
-  if (hasUltra) return 'ultra';
-
-  // Pro indicators: gemini-2.x, gemini-3, pro models (includes 2.5-pro)
-  const proIndicators = ['gemini-2', 'gemini-3', '-pro'];
-  const hasPro = modelNames.some((name) =>
-    proIndicators.some((indicator) => name.includes(indicator))
-  );
-
-  if (hasPro) return 'pro';
-
-  return 'free';
+/** Tier info from loadCodeAssist */
+interface TierInfo {
+  id?: string;
 }
 
 /** loadCodeAssist response */
 interface LoadCodeAssistResponse {
   cloudaicompanionProject?: string | { id?: string };
+  /** Current tier (may be trial/temporary) */
+  currentTier?: TierInfo;
+  /** Paid tier (reflects actual subscription - takes priority) */
+  paidTier?: TierInfo;
 }
 
 /** fetchAvailableModels response model */
@@ -308,11 +284,27 @@ function readAuthData(provider: CLIProxyProvider, accountId: string): AuthData |
 }
 
 /**
- * Get project ID via loadCodeAssist endpoint
+ * Map API tier string to AccountTier type
+ * API returns: "FREE", "PRO", "ULTRA" (or variants like "pro", "ultra")
  */
-async function getProjectId(
-  accessToken: string
-): Promise<{ projectId: string | null; error?: string; isUnprovisioned?: boolean }> {
+function mapTierString(tierStr: string | undefined): AccountTier {
+  if (!tierStr) return 'unknown';
+  const normalized = tierStr.toLowerCase();
+  if (normalized.includes('ultra')) return 'ultra';
+  if (normalized.includes('pro')) return 'pro';
+  if (normalized.includes('free')) return 'free';
+  return 'unknown';
+}
+
+/**
+ * Get project ID and subscription tier via loadCodeAssist endpoint
+ */
+async function getProjectId(accessToken: string): Promise<{
+  projectId: string | null;
+  tier?: AccountTier;
+  error?: string;
+  isUnprovisioned?: boolean;
+}> {
   const url = `${ANTIGRAVITY_API_BASE}/${ANTIGRAVITY_API_VERSION}:loadCodeAssist`;
 
   const controller = new AbortController();
@@ -367,7 +359,11 @@ async function getProjectId(
       };
     }
 
-    return { projectId: projectId.trim() };
+    // Extract tier: priority paidTier > currentTier (paid reflects actual subscription)
+    const tierStr = data.paidTier?.id || data.currentTier?.id;
+    const tier = mapTierString(tierStr);
+
+    return { projectId: projectId.trim(), tier };
   } catch (err) {
     clearTimeout(timeoutId);
     if (err instanceof Error && err.name === 'AbortError') {
@@ -529,57 +525,63 @@ export async function fetchAccountQuota(
     }
   }
 
-  // Get project ID - prefer stored value, fallback to API call
+  // Get project ID and tier - prefer stored project ID, but always call API for tier
   let projectId = authData.projectId;
-  if (!projectId) {
-    let lastProjectResult = await getProjectId(accessToken);
-    if (!lastProjectResult.projectId) {
-      // If project ID fetch fails, it might be token issue - try refresh if we haven't
-      if (authData.refreshToken && accessToken === authData.accessToken) {
-        const refreshResult = await refreshAccessToken(authData.refreshToken);
-        if (refreshResult.accessToken) {
-          accessToken = refreshResult.accessToken;
-          lastProjectResult = await getProjectId(accessToken);
-        }
-      }
-      if (!lastProjectResult.projectId) {
-        return {
-          success: false,
-          models: [],
-          lastUpdated: Date.now(),
-          error: lastProjectResult.error || 'Failed to retrieve project ID',
-          isUnprovisioned: lastProjectResult.isUnprovisioned,
-        };
+  let apiTier: AccountTier = 'unknown';
+
+  // Always call loadCodeAssist to get accurate tier from API
+  let lastProjectResult = await getProjectId(accessToken);
+
+  if (!lastProjectResult.projectId && !projectId) {
+    // If project ID fetch fails, it might be token issue - try refresh if we haven't
+    if (authData.refreshToken && accessToken === authData.accessToken) {
+      const refreshResult = await refreshAccessToken(authData.refreshToken);
+      if (refreshResult.accessToken) {
+        accessToken = refreshResult.accessToken;
+        lastProjectResult = await getProjectId(accessToken);
       }
     }
-    projectId = lastProjectResult.projectId;
+    if (!lastProjectResult.projectId) {
+      return {
+        success: false,
+        models: [],
+        lastUpdated: Date.now(),
+        error: lastProjectResult.error || 'Failed to retrieve project ID',
+        isUnprovisioned: lastProjectResult.isUnprovisioned,
+      };
+    }
   }
 
+  // Use API project ID if available, else fallback to stored
+  projectId = lastProjectResult.projectId || projectId;
+  apiTier = lastProjectResult.tier || 'unknown';
+
   // Fetch models with quota
-  const result = await fetchAvailableModels(accessToken, projectId);
+  const result = await fetchAvailableModels(accessToken, projectId as string);
 
   // If quota fetch fails with auth error and we haven't refreshed yet, try refresh
   if (!result.success && result.error?.includes('expired') && authData.refreshToken) {
     const refreshResult = await refreshAccessToken(authData.refreshToken);
     if (refreshResult.accessToken) {
-      const retryResult = await fetchAvailableModels(refreshResult.accessToken, projectId);
-      // Detect and persist tier for retry result
+      const retryResult = await fetchAvailableModels(
+        refreshResult.accessToken,
+        projectId as string
+      );
+      // Use API tier (from loadCodeAssist) instead of model-based detection
       if (retryResult.success) {
-        const tier = detectTier(retryResult);
-        retryResult.tier = tier;
+        retryResult.tier = apiTier;
         retryResult.accountId = accountId;
-        setAccountTier(provider, accountId, tier);
+        setAccountTier(provider, accountId, apiTier);
       }
       return retryResult;
     }
   }
 
-  // Detect and persist tier for successful result
+  // Use API tier (from loadCodeAssist) instead of model-based detection
   if (result.success) {
-    const tier = detectTier(result);
-    result.tier = tier;
+    result.tier = apiTier;
     result.accountId = accountId;
-    setAccountTier(provider, accountId, tier);
+    setAccountTier(provider, accountId, apiTier);
   }
 
   return result;
