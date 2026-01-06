@@ -24,6 +24,8 @@ import {
   setDefaultAccount as setDefaultAccountFn,
   removeAccount as removeAccountFn,
   touchAccount,
+  PROVIDERS_WITHOUT_EMAIL,
+  validateNickname,
 } from '../../cliproxy/account-manager';
 import { getProxyTarget } from '../../cliproxy/proxy-target-resolver';
 import { fetchRemoteAuthStatus } from '../../cliproxy/remote-auth-fetcher';
@@ -275,12 +277,47 @@ router.delete('/accounts/:provider/:accountId', (req: Request, res: Response): v
  */
 router.post('/:provider/start', async (req: Request, res: Response): Promise<void> => {
   const { provider } = req.params;
-  const { nickname, noIncognito: noIncognitoBody } = req.body;
+  const { nickname: nicknameRaw, noIncognito: noIncognitoBody } = req.body;
+  // Trim nickname for consistency with CLI (oauth-handler.ts trims input)
+  const nickname = typeof nicknameRaw === 'string' ? nicknameRaw.trim() : nicknameRaw;
 
   // Validate provider
   if (!validProviders.includes(provider as CLIProxyProvider)) {
     res.status(400).json({ error: `Invalid provider: ${provider}` });
     return;
+  }
+
+  // For kiro/ghcp: nickname is required
+  if (PROVIDERS_WITHOUT_EMAIL.includes(provider as CLIProxyProvider)) {
+    if (!nickname) {
+      res.status(400).json({
+        error: `Nickname is required for ${provider} accounts. Please provide a unique nickname.`,
+        code: 'NICKNAME_REQUIRED',
+      });
+      return;
+    }
+
+    const validationError = validateNickname(nickname);
+    if (validationError) {
+      res.status(400).json({
+        error: validationError,
+        code: 'INVALID_NICKNAME',
+      });
+      return;
+    }
+
+    // Check uniqueness
+    const existingAccounts = getProviderAccounts(provider as CLIProxyProvider);
+    const existingNicknames = existingAccounts.map(
+      (a) => a.nickname?.toLowerCase() || a.id.toLowerCase()
+    );
+    if (existingNicknames.includes(nickname.toLowerCase())) {
+      res.status(400).json({
+        error: `Nickname "${nickname}" is already in use. Choose a different one.`,
+        code: 'NICKNAME_EXISTS',
+      });
+      return;
+    }
   }
 
   // Check Kiro no-incognito setting from config (or request body)
