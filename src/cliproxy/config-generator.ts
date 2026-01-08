@@ -15,12 +15,157 @@ import { expandPath } from '../utils/helpers';
 import { warn } from '../utils/ui';
 import { CLIProxyProvider, ProviderConfig, ProviderModelMapping } from './types';
 import { getModelMappingFromConfig, getEnvVarsFromConfig } from './base-config-loader';
-import { loadOrCreateUnifiedConfig, getGlobalEnvConfig } from '../config/unified-config-loader';
+import {
+  loadOrCreateUnifiedConfig,
+  getGlobalEnvConfig,
+  getThinkingConfig,
+} from '../config/unified-config-loader';
 import { getEffectiveApiKey, getEffectiveManagementSecret } from './auth-token-manager';
+import { supportsThinking } from './model-catalog';
+import { ThinkingConfig } from '../config/unified-config-types';
+import { validateThinking } from './thinking-validator';
 
 /** Settings file structure for user overrides */
 interface ProviderSettings {
   env: NodeJS.ProcessEnv;
+}
+
+/**
+ * Detect current tier from model name.
+ * Looks at ANTHROPIC_MODEL to determine if using opus/sonnet/haiku tier.
+ */
+export type ModelTier = 'opus' | 'sonnet' | 'haiku';
+
+/**
+ * Detect tier from model name.
+ * Returns 'sonnet' as default if unclear.
+ */
+export function detectTierFromModel(modelName: string): ModelTier {
+  const lower = modelName.toLowerCase();
+  if (lower.includes('opus')) return 'opus';
+  if (lower.includes('haiku')) return 'haiku';
+  return 'sonnet'; // Default to sonnet (most common)
+}
+
+/**
+ * Apply thinking suffix to model name.
+ * CLIProxyAPIPlus parses suffixes like model(level) or model(budget).
+ *
+ * @param model - Base model name
+ * @param thinkingValue - Level name (e.g., 'high') or numeric budget
+ * @returns Model name with thinking suffix, e.g., "gemini-3-pro-preview(high)"
+ */
+export function applyThinkingSuffix(model: string, thinkingValue: string | number): string {
+  // Don't apply if already has suffix
+  if (model.includes('(') && model.includes(')')) {
+    return model;
+  }
+  return `${model}(${thinkingValue})`;
+}
+
+/**
+ * Get thinking value for tier based on config.
+ * Respects provider-specific overrides if configured.
+ */
+export function getThinkingValueForTier(
+  tier: ModelTier,
+  provider: CLIProxyProvider,
+  thinkingConfig: ThinkingConfig
+): string {
+  // Check provider-specific override first
+  const providerOverride = thinkingConfig.provider_overrides?.[provider]?.[tier];
+  if (providerOverride) {
+    return providerOverride;
+  }
+  // Fall back to global tier default
+  return thinkingConfig.tier_defaults[tier];
+}
+
+/**
+ * Apply thinking configuration to env vars.
+ * Modifies ANTHROPIC_MODEL and tier models with thinking suffixes.
+ *
+ * @param envVars - Environment variables to modify
+ * @param provider - CLIProxy provider
+ * @param thinkingOverride - Optional CLI override (takes priority over config)
+ * @returns Modified env vars with thinking suffixes applied
+ */
+export function applyThinkingConfig(
+  envVars: NodeJS.ProcessEnv,
+  provider: CLIProxyProvider,
+  thinkingOverride?: string | number
+): NodeJS.ProcessEnv {
+  const thinkingConfig = getThinkingConfig();
+  const result = { ...envVars };
+
+  // Check if thinking is off
+  if (thinkingConfig.mode === 'off' && thinkingOverride === undefined) {
+    return result;
+  }
+
+  // Get base model to check thinking support
+  const baseModel = result.ANTHROPIC_MODEL || '';
+  if (!supportsThinking(provider, baseModel)) {
+    return result; // Model doesn't support thinking
+  }
+
+  // Determine thinking value to use
+  let thinkingValue: string | number;
+
+  if (thinkingOverride !== undefined) {
+    // CLI override takes priority
+    thinkingValue = thinkingOverride;
+  } else if (thinkingConfig.mode === 'manual' && thinkingConfig.override !== undefined) {
+    // Config manual mode with override
+    thinkingValue = thinkingConfig.override;
+  } else if (thinkingConfig.mode === 'auto') {
+    // Auto mode: detect tier and apply default
+    const tier = detectTierFromModel(baseModel);
+    thinkingValue = getThinkingValueForTier(tier, provider, thinkingConfig);
+  } else {
+    return result; // No thinking to apply
+  }
+
+  // Validate thinking value against model capabilities
+  const validation = validateThinking(provider, baseModel, thinkingValue);
+  if (validation.warning && thinkingConfig.show_warnings !== false) {
+    console.warn(warn(validation.warning));
+  }
+  thinkingValue = validation.value;
+
+  // If validation says off, don't apply suffix
+  if (thinkingValue === 'off') {
+    return result;
+  }
+
+  // Apply thinking suffix to main model
+  if (result.ANTHROPIC_MODEL) {
+    result.ANTHROPIC_MODEL = applyThinkingSuffix(result.ANTHROPIC_MODEL, thinkingValue);
+  }
+
+  // Apply to tier models if they support thinking
+  const tierModels = [
+    'ANTHROPIC_DEFAULT_OPUS_MODEL',
+    'ANTHROPIC_DEFAULT_SONNET_MODEL',
+    'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+  ] as const;
+
+  for (const tierVar of tierModels) {
+    const model = result[tierVar];
+    if (model && supportsThinking(provider, model)) {
+      // Get tier-specific thinking value
+      const tier = tierVar.includes('OPUS')
+        ? 'opus'
+        : tierVar.includes('SONNET')
+          ? 'sonnet'
+          : 'haiku';
+      const tierThinkingValue =
+        thinkingOverride ?? getThinkingValueForTier(tier, provider, thinkingConfig);
+      result[tierVar] = applyThinkingSuffix(model, tierThinkingValue);
+    }
+  }
+
+  return result;
 }
 
 /**
