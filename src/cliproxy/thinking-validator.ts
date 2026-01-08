@@ -105,6 +105,15 @@ export function validateThinking(
 ): ThinkingValidationResult {
   const thinking = getModelThinkingSupport(provider, modelId);
 
+  // Handle empty string explicitly
+  if (typeof value === 'string' && value.trim() === '') {
+    return {
+      valid: false,
+      value: 'off',
+      warning: 'Empty thinking value not allowed. Using "off".',
+    };
+  }
+
   // Handle off/none/disabled values
   if (typeof value === 'string') {
     const normalizedValue = value.toLowerCase().trim();
@@ -196,6 +205,15 @@ function validateBudgetThinking(
     }
   } else {
     budget = value;
+  }
+
+  // Reject NaN/Infinity budgets
+  if (!Number.isFinite(budget)) {
+    return {
+      valid: false,
+      value: min || THINKING_BUDGET_DEFAULT_MIN,
+      warning: `Budget must be a finite number. Using minimum ${min || THINKING_BUDGET_DEFAULT_MIN}.`,
+    };
   }
 
   // Reject negative budgets
