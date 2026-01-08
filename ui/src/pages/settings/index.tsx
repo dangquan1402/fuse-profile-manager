@@ -17,6 +17,7 @@ import type { SettingsTab } from './types';
 // Lazy-loaded sections
 const WebSearchSection = lazy(() => import('./sections/websearch'));
 const GlobalEnvSection = lazy(() => import('./sections/globalenv-section'));
+const ThinkingSection = lazy(() => import('./sections/thinking'));
 const ProxySection = lazy(() => import('./sections/proxy'));
 const AuthSection = lazy(() => import('./sections/auth-section'));
 
@@ -57,6 +58,7 @@ function SettingsPageInner() {
             <Suspense fallback={<SectionSkeleton />}>
               {activeTab === 'websearch' && <WebSearchSection />}
               {activeTab === 'globalenv' && <GlobalEnvSection />}
+              {activeTab === 'thinking' && <ThinkingSection />}
               {activeTab === 'proxy' && <ProxySection />}
               {activeTab === 'auth' && <AuthSection />}
             </Suspense>
