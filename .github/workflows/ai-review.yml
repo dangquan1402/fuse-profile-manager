@@ -102,25 +102,26 @@ jobs:
 
             ## Review Focus Areas
 
-            1. **Security** - OWASP Top 10, injection, auth bypass, secrets exposure
-            2. **Correctness** - Logic errors, edge cases, error handling
-            3. **Architecture** - Coupling, cohesion, API contracts, backward compatibility
-            4. **Testing** - Coverage, edge cases, test quality
-            5. **Performance** - Algorithm complexity, memory leaks, query efficiency
-            6. **Maintainability** - Naming, complexity, consistency with codebase
+            1. 🔒 **Security** - OWASP Top 10, injection, auth bypass, secrets exposure
+            2. ✅ **Correctness** - Logic errors, edge cases, error handling
+            3. 🏗️ **Architecture** - Coupling, cohesion, API contracts, backward compatibility
+            4. 🧪 **Testing** - Coverage, edge cases, test quality
+            5. ⚡ **Performance** - Algorithm complexity, memory leaks, query efficiency
+            6. 📖 **Maintainability** - Naming, complexity, consistency with codebase
 
             ## Output Structure
 
-            Use visual hierarchy with `---` separators between major sections:
-            - Summary (2-3 sentences)
-            - Strengths (numbered, with file:line references)
-            - Observations & Suggestions (with code examples)
-            - Security Considerations (✅/❌ checklist)
-            - Code Quality Checklist (✅/❌ format)
-            - Recommendations (Priority: High/Medium/Low)
-            - Overall Assessment (APPROVED/APPROVED WITH NOTES/CHANGES REQUESTED)
+            Use visual hierarchy with emojis and `---` separators between major sections:
+            - 📋 **Summary** (2-3 sentences)
+            - ✅ **Strengths** (numbered, with file:line references, use ⭐ for exceptional items)
+            - 🔍 **Observations & Suggestions** (with code examples, priority tags)
+            - 🔒 **Security Considerations** (✅/❌ checklist table)
+            - 📊 **Code Quality Checklist** (✅/❌ table format)
+            - 💡 **Recommendations** (🔴 High / 🟡 Medium / 🟢 Low priority)
+            - 🎯 **Overall Assessment** (✅ APPROVED / ⚠️ APPROVED WITH NOTES / ❌ CHANGES REQUESTED)
 
             Be thorough but concise. Skip empty sections. Include code examples for non-trivial suggestions.
+            Use tables for checklists. Bold important terms. Make the review visually scannable.
 
             End your review with:
             > 🤖 Reviewed by `${{ env.REVIEW_MODEL }}`
