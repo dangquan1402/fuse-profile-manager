@@ -16,6 +16,8 @@ const DEFAULT_THINKING_CONFIG: ThinkingConfig = {
   show_warnings: true,
 };
 
+const FETCH_TIMEOUT = 10000; // 10 second timeout
+
 export function useThinkingConfig() {
   const [config, setConfig] = useState<ThinkingConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,15 +26,24 @@ export function useThinkingConfig() {
   const [success, setSuccess] = useState(false);
 
   const fetchConfig = useCallback(async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch('/api/thinking');
+      const res = await fetch('/api/thinking', { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (!res.ok) throw new Error('Failed to load Thinking config');
       const data = await res.json();
       setConfig(data.config || DEFAULT_THINKING_CONFIG);
     } catch (err) {
-      setError((err as Error).message);
+      clearTimeout(timeoutId);
+      if ((err as Error).name === 'AbortError') {
+        setError('Request timeout - please try again');
+      } else {
+        setError((err as Error).message);
+      }
       setConfig(DEFAULT_THINKING_CONFIG);
     } finally {
       setLoading(false);
@@ -45,6 +56,9 @@ export function useThinkingConfig() {
       const optimisticConfig = { ...currentConfig, ...updates };
       setConfig(optimisticConfig);
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+
       try {
         setSaving(true);
         setError(null);
@@ -53,7 +67,10 @@ export function useThinkingConfig() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(optimisticConfig),
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (!res.ok) {
           const data = await res.json();
@@ -65,8 +82,13 @@ export function useThinkingConfig() {
         setSuccess(true);
         setTimeout(() => setSuccess(false), 1500);
       } catch (err) {
+        clearTimeout(timeoutId);
         setConfig(currentConfig);
-        setError((err as Error).message);
+        if ((err as Error).name === 'AbortError') {
+          setError('Request timeout - please try again');
+        } else {
+          setError((err as Error).message);
+        }
       } finally {
         setSaving(false);
       }
