@@ -1,6 +1,6 @@
 /**
  * Backups Section
- * Settings section for managing config.yaml backups (list and restore)
+ * Settings section for managing settings.json backups (list and restore)
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
@@ -73,38 +73,41 @@ export default function BackupsSection() {
     }
   }, []);
 
-  // Restore backup
-  const restoreBackup = async (timestamp: string) => {
-    // Abort previous restore request
-    restoreAbortControllerRef.current?.abort();
-    restoreAbortControllerRef.current = new AbortController();
+  // Restore backup (wrapped in useCallback for callback stability)
+  const restoreBackup = useCallback(
+    async (timestamp: string) => {
+      // Abort previous restore request
+      restoreAbortControllerRef.current?.abort();
+      restoreAbortControllerRef.current = new AbortController();
 
-    try {
-      setRestoring(timestamp);
-      setError(null);
-      const response = await fetch('/api/persist/restore', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timestamp }),
-        signal: restoreAbortControllerRef.current.signal,
-      });
+      try {
+        setRestoring(timestamp);
+        setError(null);
+        const response = await fetch('/api/persist/restore', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ timestamp }),
+          signal: restoreAbortControllerRef.current.signal,
+        });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to restore backup');
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to restore backup');
+        }
+
+        setSuccess('Backup restored successfully');
+        await fetchBackups();
+        await fetchRawConfig();
+      } catch (err) {
+        // Ignore abort errors
+        if (err instanceof Error && err.name === 'AbortError') return;
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setRestoring(null);
       }
-
-      setSuccess('Backup restored successfully');
-      await fetchBackups();
-      await fetchRawConfig();
-    } catch (err) {
-      // Ignore abort errors
-      if (err instanceof Error && err.name === 'AbortError') return;
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setRestoring(null);
-    }
-  };
+    },
+    [fetchBackups, fetchRawConfig]
+  );
 
   // Load on mount
   useEffect(() => {
@@ -199,8 +202,8 @@ export default function BackupsSection() {
               <h2 className="text-lg font-semibold">Settings Backups</h2>
             </div>
             <p className="text-sm text-muted-foreground">
-              Restore previous versions of your config.yaml file. Backups are created automatically
-              when settings are modified.
+              Restore previous versions of your settings.json file. Backups are created
+              automatically when settings are modified.
             </p>
           </div>
 
