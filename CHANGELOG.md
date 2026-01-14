@@ -1,3 +1,21 @@
+## [7.20.0](https://github.com/kaitranntt/ccs/compare/v7.19.2...v7.20.0) (2026-01-14)
+
+### Features
+
+* **config:** add ccs config auth CLI subcommand ([39c1ee2](https://github.com/kaitranntt/ccs/commit/39c1ee2ca0f01a1254812a4a8fe8f6c2ed052fe0)), closes [#319](https://github.com/kaitranntt/ccs/issues/319)
+* **dashboard:** add optional login authentication ([#319](https://github.com/kaitranntt/ccs/issues/319)) ([464b410](https://github.com/kaitranntt/ccs/commit/464b410e8b3e017689ce7de6b6fc06b3f04c7fdd))
+* **persist:** add --list-backups and --restore options for backup management ([ef7e595](https://github.com/kaitranntt/ccs/commit/ef7e595b6fa4c96ac88e2e98f992fd05f7525e2e))
+* **persist:** add backup management for settings.json ([#312](https://github.com/kaitranntt/ccs/issues/312)) ([3ac687e](https://github.com/kaitranntt/ccs/commit/3ac687ec9fab6ad4ce11bd3af6af5c596958a5e2)), closes [#248](https://github.com/kaitranntt/ccs/issues/248)
+
+### Bug Fixes
+
+* **auth:** add security hardening per code review ([a3a167e](https://github.com/kaitranntt/ccs/commit/a3a167e62aaa555c71379e91a9dfd0b7f5ddf145))
+* **auth:** move redirect to useEffect and validate bcrypt hash format ([37e3468](https://github.com/kaitranntt/ccs/commit/37e3468d4dece26d35ef6b5ad9683312473e1ca9))
+* **ci:** add full CLIProxy env vars for AI review ([7cfd3c1](https://github.com/kaitranntt/ccs/commit/7cfd3c1f9dbd387d4fc6388382727222bd8475bd))
+* **ci:** add Write tool to allowedTools for PR comment posting ([e7dca48](https://github.com/kaitranntt/ccs/commit/e7dca480d313b2227638a3e8a53554b3d28d2c8e))
+* **persist:** harden security and edge case handling ([#328](https://github.com/kaitranntt/ccs/issues/328)) ([397331e](https://github.com/kaitranntt/ccs/commit/397331ec8995b261e0b6916874d59947ede0a88f)), closes [#312](https://github.com/kaitranntt/ccs/issues/312)
+* **ui:** use wss:// for WebSocket on HTTPS pages ([#315](https://github.com/kaitranntt/ccs/issues/315)) ([db58c6b](https://github.com/kaitranntt/ccs/commit/db58c6bbcabdb1edc1748212ad0b85af682ac597))
+
 ## [7.19.2](https://github.com/kaitranntt/ccs/compare/v7.19.1...v7.19.2) (2026-01-13)
 
 ### Bug Fixes
