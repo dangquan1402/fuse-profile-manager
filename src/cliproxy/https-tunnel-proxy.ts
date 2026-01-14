@@ -226,7 +226,10 @@ export class HttpsTunnelProxy {
       });
 
       upstreamReq.on('timeout', () => {
-        upstreamReq.destroy(new Error('Upstream request timeout'));
+        const timeoutError = new Error('Upstream request timeout');
+        this.log(`Timeout: ${timeoutError.message}`);
+        upstreamReq.destroy();
+        reject(timeoutError);
       });
 
       upstreamReq.on('error', (err) => {

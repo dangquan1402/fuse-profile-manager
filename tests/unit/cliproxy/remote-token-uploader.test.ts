@@ -4,7 +4,7 @@
  * Tests for uploadTokenToRemote and related functions.
  * Uses a local HTTP server to mock the remote CLIProxyAPI.
  */
-import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';

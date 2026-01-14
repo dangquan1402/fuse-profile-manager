@@ -63,7 +63,7 @@ export async function uploadTokenToRemote(
   const fileName = path.basename(tokenFilePath);
   const url = buildProxyUrl(target, '/v0/management/auth-files');
 
-  // Use X-Management-Key header (CLIProxyAPI requirement)
+  // Use Authorization: Bearer header for authentication
   const authKey = target.managementKey ?? target.authToken;
 
   if (verbose) {
