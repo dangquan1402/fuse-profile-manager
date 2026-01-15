@@ -47,6 +47,8 @@ export interface AccountInfo {
   pausedAt?: string;
   /** Account tier: free or paid (Pro/Ultra combined) */
   tier?: AccountTier;
+  /** GCP Project ID (Antigravity only) - read-only, fetched from auth token */
+  projectId?: string;
 }
 
 /** Provider accounts configuration */
@@ -293,7 +295,8 @@ export function registerAccount(
   provider: CLIProxyProvider,
   tokenFile: string,
   email?: string,
-  nickname?: string
+  nickname?: string,
+  projectId?: string
 ): AccountInfo {
   const registry = loadAccountsRegistry();
 
@@ -350,13 +353,20 @@ export function registerAccount(
   const isFirstAccount = Object.keys(providerAccounts.accounts).length === 0;
 
   // Create or update account
-  providerAccounts.accounts[accountId] = {
+  const accountMeta: Omit<AccountInfo, 'id' | 'provider' | 'isDefault'> = {
     email,
     nickname: accountNickname,
     tokenFile,
     createdAt: new Date().toISOString(),
     lastUsedAt: new Date().toISOString(),
   };
+
+  // Include projectId for Antigravity accounts
+  if (provider === 'agy' && projectId) {
+    accountMeta.projectId = projectId;
+  }
+
+  providerAccounts.accounts[accountId] = accountMeta;
 
   // Set as default if first account
   if (isFirstAccount) {
@@ -374,6 +384,7 @@ export function registerAccount(
     tokenFile,
     createdAt: providerAccounts.accounts[accountId].createdAt,
     lastUsedAt: providerAccounts.accounts[accountId].lastUsedAt,
+    projectId: providerAccounts.accounts[accountId].projectId,
   };
 }
 
@@ -629,6 +640,20 @@ export function discoverExistingAccounts(): void {
       // Skip if token file already registered (under any accountId)
       const existingTokenFiles = Object.values(providerAccounts.accounts).map((a) => a.tokenFile);
       if (existingTokenFiles.includes(file)) {
+        // Token file exists - check if we need to update projectId for agy accounts
+        const projectIdValue =
+          typeof data.project_id === 'string' && data.project_id.trim()
+            ? data.project_id.trim()
+            : null;
+        if (provider === 'agy' && projectIdValue) {
+          const existingEntry = Object.entries(providerAccounts.accounts).find(
+            ([, meta]) => meta.tokenFile === file
+          );
+          // Update if missing or changed
+          if (existingEntry && existingEntry[1].projectId !== projectIdValue) {
+            existingEntry[1].projectId = projectIdValue;
+          }
+        }
         continue;
       }
 
@@ -671,13 +696,24 @@ export function discoverExistingAccounts(): void {
       // Register account with auto-generated nickname
       // Use mtime as lastUsedAt (when token was last modified = last auth/refresh)
       const lastModified = stats.mtime || stats.birthtime || new Date();
-      providerAccounts.accounts[accountId] = {
+      const accountMeta: Omit<AccountInfo, 'id' | 'provider' | 'isDefault'> = {
         email,
         nickname: generateNickname(email),
         tokenFile: file,
         createdAt: stats.birthtime?.toISOString() || new Date().toISOString(),
         lastUsedAt: lastModified.toISOString(),
       };
+
+      // Read project_id for Antigravity accounts (read-only field from auth token)
+      const discoveredProjectId =
+        typeof data.project_id === 'string' && data.project_id.trim()
+          ? data.project_id.trim()
+          : null;
+      if (provider === 'agy' && discoveredProjectId) {
+        accountMeta.projectId = discoveredProjectId;
+      }
+
+      providerAccounts.accounts[accountId] = accountMeta;
     } catch {
       // Skip invalid files
       continue;
@@ -693,7 +729,7 @@ export function discoverExistingAccounts(): void {
     if (!freshRegistry.providers[prov]) {
       freshRegistry.providers[prov] = discovered;
     } else {
-      // Merge accounts, preferring fresh registry's existing entries
+      // Merge accounts, preferring fresh registry's existing entries but updating projectId
       const freshProviderAccounts = freshRegistry.providers[prov];
       if (!freshProviderAccounts) continue;
       for (const [id, meta] of Object.entries(discovered.accounts)) {
@@ -703,6 +739,9 @@ export function discoverExistingAccounts(): void {
           if (!freshProviderAccounts.default || freshProviderAccounts.default === 'default') {
             freshProviderAccounts.default = id;
           }
+        } else if (meta.projectId && !freshProviderAccounts.accounts[id].projectId) {
+          // Update existing account with projectId if discovered from auth file
+          freshProviderAccounts.accounts[id].projectId = meta.projectId;
         }
       }
     }
