@@ -1,3 +1,22 @@
+## [7.24.0](https://github.com/kaitranntt/ccs/compare/v7.23.0...v7.24.0) (2026-01-18)
+
+### Features
+
+* **cliproxy:** add backend selection for CLIProxyAPI vs CLIProxyAPIPlus ([8ade4a6](https://github.com/kaitranntt/ccs/commit/8ade4a6b26a7870b730094ca47085cf4dc1bc411))
+
+### Bug Fixes
+
+* **cliproxy:** address PR review issues for backend selection ([a019ed2](https://github.com/kaitranntt/ccs/commit/a019ed2cf88a0e458d220fa0e9117c1490e9e6a6))
+
+### Documentation
+
+* add Docker support documentation ([90bced9](https://github.com/kaitranntt/ccs/commit/90bced95a42178c5bafae259285413552740cb54))
+
+### Code Refactoring
+
+* **ci:** simplify ai-review to use claude-code-action directly ([5e22547](https://github.com/kaitranntt/ccs/commit/5e22547f3fc19202039dc855a4516e12253960c6))
+* **ci:** simplify ai-review to vanilla claude-code-action ([bdfc409](https://github.com/kaitranntt/ccs/commit/bdfc40966a316b36b3689c8cdc3e6326ba789399))
+
 ## [7.23.0](https://github.com/kaitranntt/ccs/compare/v7.22.0...v7.23.0) (2026-01-18)
 
 ### Features
