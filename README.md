@@ -53,6 +53,8 @@ ccs config
 # Opens http://localhost:3000
 ```
 
+Want to run the dashboard in Docker? See `docker/README.md`.
+
 ### 3. Configure Your Accounts
 
 The dashboard provides visual management for all account types:
