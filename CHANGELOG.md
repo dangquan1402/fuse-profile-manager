@@ -1,3 +1,9 @@
+## [7.24.2](https://github.com/kaitranntt/ccs/compare/v7.24.1...v7.24.2) (2026-01-18)
+
+### Bug Fixes
+
+* **ci:** disable track_progress for workflow_dispatch events ([65c325d](https://github.com/kaitranntt/ccs/commit/65c325d33e3e55f7214f2d4b786f4204751722b6))
+
 ## [7.24.1](https://github.com/kaitranntt/ccs/compare/v7.24.0...v7.24.1) (2026-01-18)
 
 ### Bug Fixes
