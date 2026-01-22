@@ -426,7 +426,7 @@ async function showHelp(): Promise<void> {
   console.log('');
   console.log(subheader('Options'));
   console.log(
-    `  ${color('--preset <id>', 'command')}        Use provider preset (openrouter, glm, glmt, kimi, foundry, mm, deepseek, qwen)`
+    `  ${color('--preset <id>', 'command')}        Use provider preset (openrouter, ollama, glm, glmt, kimi, foundry, mm, deepseek, qwen)`
   );
   console.log(`  ${color('--base-url <url>', 'command')}     API base URL (create)`);
   console.log(`  ${color('--api-key <key>', 'command')}      API key (create)`);
@@ -437,6 +437,12 @@ async function showHelp(): Promise<void> {
   console.log(subheader('Provider Presets'));
   console.log(
     `  ${color('openrouter', 'command')}    OpenRouter - 349+ models (Claude, GPT, Gemini, Llama)`
+  );
+  console.log(
+    `  ${color('ollama', 'command')}          Ollama - Local open-source models (no API key)`
+  );
+  console.log(
+    `  ${color('ollama-cloud', 'command')}   Ollama Cloud - glm-4.7:cloud, qwen3-coder:480b`
   );
   console.log(`  ${color('glm', 'command')}           GLM - Claude via Z.AI`);
   console.log(`  ${color('glmt', 'command')}          GLMT - GLM with Thinking mode`);
