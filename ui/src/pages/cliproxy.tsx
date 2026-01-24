@@ -24,6 +24,9 @@ import {
   useRemoveAccount,
   usePauseAccount,
   useResumeAccount,
+  useSoloAccount,
+  useBulkPauseAccounts,
+  useBulkResumeAccounts,
   useDeleteVariant,
 } from '@/hooks/use-cliproxy';
 import type { AuthStatus, Variant } from '@/lib/api-client';
@@ -185,6 +188,9 @@ export function CliproxyPage() {
   const removeMutation = useRemoveAccount();
   const pauseMutation = usePauseAccount();
   const resumeMutation = useResumeAccount();
+  const soloMutation = useSoloAccount();
+  const bulkPauseMutation = useBulkPauseAccounts();
+  const bulkResumeMutation = useBulkResumeAccounts();
   const deleteMutation = useDeleteVariant();
 
   // Selection state: either a provider or a variant
@@ -230,6 +236,21 @@ export function CliproxyPage() {
     } else {
       resumeMutation.mutate({ provider, accountId });
     }
+  };
+
+  const handleSoloMode = (provider: string, accountId: string) => {
+    if (soloMutation.isPending) return;
+    soloMutation.mutate({ provider, accountId });
+  };
+
+  const handleBulkPause = (provider: string, accountIds: string[]) => {
+    if (bulkPauseMutation.isPending) return;
+    bulkPauseMutation.mutate({ provider, accountIds });
+  };
+
+  const handleBulkResume = (provider: string, accountIds: string[]) => {
+    if (bulkResumeMutation.isPending) return;
+    bulkResumeMutation.mutate({ provider, accountIds });
   };
 
   const handleSelectProvider = (provider: string) => {
@@ -380,8 +401,16 @@ export function CliproxyPage() {
             onPauseToggle={(accountId, paused) =>
               handlePauseToggle(selectedVariantData.provider, accountId, paused)
             }
+            onSoloMode={(accountId) => handleSoloMode(selectedVariantData.provider, accountId)}
+            onBulkPause={(accountIds) => handleBulkPause(selectedVariantData.provider, accountIds)}
+            onBulkResume={(accountIds) =>
+              handleBulkResume(selectedVariantData.provider, accountIds)
+            }
             isRemovingAccount={removeMutation.isPending}
             isPausingAccount={pauseMutation.isPending || resumeMutation.isPending}
+            isSoloingAccount={soloMutation.isPending}
+            isBulkPausing={bulkPauseMutation.isPending}
+            isBulkResuming={bulkResumeMutation.isPending}
           />
         ) : selectedStatus ? (
           <ProviderEditor
@@ -412,8 +441,14 @@ export function CliproxyPage() {
             onPauseToggle={(accountId, paused) =>
               handlePauseToggle(selectedStatus.provider, accountId, paused)
             }
+            onSoloMode={(accountId) => handleSoloMode(selectedStatus.provider, accountId)}
+            onBulkPause={(accountIds) => handleBulkPause(selectedStatus.provider, accountIds)}
+            onBulkResume={(accountIds) => handleBulkResume(selectedStatus.provider, accountIds)}
             isRemovingAccount={removeMutation.isPending}
             isPausingAccount={pauseMutation.isPending || resumeMutation.isPending}
+            isSoloingAccount={soloMutation.isPending}
+            isBulkPausing={bulkPauseMutation.isPending}
+            isBulkResuming={bulkResumeMutation.isPending}
           />
         ) : (
           <EmptyProviderState onSetup={() => setWizardOpen(true)} />
