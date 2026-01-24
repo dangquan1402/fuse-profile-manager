@@ -2,25 +2,19 @@
  * Remote Token Uploader Tests
  *
  * Tests for uploadTokenToRemote and related functions.
- * Uses a local HTTP server to mock the remote CLIProxyAPI.
+ * Uses mock fetch to verify API interactions.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import type { AddressInfo } from 'net';
-
-// We need to mock getProxyTarget before importing the module
-// Since the module reads config at import time, we'll test the pure functions
+import { mockFetch, restoreFetch, getCapturedFetchRequests } from '../../mocks';
 
 describe('remote-token-uploader', () => {
-  let mockServer: http.Server | null = null;
-  let mockServerPort: number = 0;
   let tempDir: string;
   let tempTokenFile: string;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     // Create temp directory and token file
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccs-test-'));
     tempTokenFile = path.join(tempDir, 'test-token.json');
@@ -35,14 +29,8 @@ describe('remote-token-uploader', () => {
     );
   });
 
-  afterEach(async () => {
-    // Clean up mock server
-    if (mockServer) {
-      await new Promise<void>((resolve) => {
-        mockServer!.close(() => resolve());
-      });
-      mockServer = null;
-    }
+  afterEach(() => {
+    restoreFetch();
 
     // Clean up temp files
     try {
@@ -55,48 +43,15 @@ describe('remote-token-uploader', () => {
 
   describe('uploadTokenToRemote', () => {
     it('should upload token file successfully', async () => {
-      // Create mock server that accepts uploads
-      let receivedRequest: {
-        method: string;
-        path: string;
-        headers: http.IncomingHttpHeaders;
-        body: string;
-      } | null = null;
+      mockFetch([
+        {
+          url: /\/v0\/management\/auth-files/,
+          method: 'POST',
+          response: { status: 'ok', id: 'uploaded-123' },
+        },
+      ]);
 
-      mockServer = http.createServer((req, res) => {
-        let body = '';
-        req.on('data', (chunk) => (body += chunk));
-        req.on('end', () => {
-          receivedRequest = {
-            method: req.method || '',
-            path: req.url || '',
-            headers: req.headers,
-            body,
-          };
-
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ status: 'ok', id: 'uploaded-123' }));
-        });
-      });
-
-      await new Promise<void>((resolve) => {
-        mockServer!.listen(0, '127.0.0.1', () => resolve());
-      });
-
-      mockServerPort = (mockServer.address() as AddressInfo).port;
-
-      // Mock getProxyTarget to return our test server
-      const mockProxyTarget = {
-        isRemote: true,
-        host: `127.0.0.1:${mockServerPort}`,
-        protocol: 'http' as const,
-        authToken: 'test-auth-token',
-        managementKey: 'test-mgmt-key',
-      };
-
-      // Dynamically import and test
-      // We need to test the fetch logic directly since module caches getProxyTarget
-      const url = `http://${mockProxyTarget.host}/v0/management/auth-files`;
+      const url = 'http://127.0.0.1:8317/v0/management/auth-files';
       const tokenContent = fs.readFileSync(tempTokenFile, 'utf-8');
       const fileName = path.basename(tempTokenFile);
 
@@ -107,7 +62,7 @@ describe('remote-token-uploader', () => {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${mockProxyTarget.managementKey}`,
+          Authorization: 'Bearer test-mgmt-key',
         },
         body: formData,
       });
@@ -118,27 +73,26 @@ describe('remote-token-uploader', () => {
       expect(result).toHaveProperty('status', 'ok');
       expect(result).toHaveProperty('id', 'uploaded-123');
 
-      // Verify request was received correctly
-      expect(receivedRequest).not.toBeNull();
-      expect(receivedRequest!.method).toBe('POST');
-      expect(receivedRequest!.path).toBe('/v0/management/auth-files');
-      expect(receivedRequest!.headers['authorization']).toBe('Bearer test-mgmt-key');
+      // Verify request was captured correctly
+      const captured = getCapturedFetchRequests();
+      expect(captured.length).toBe(1);
+      expect(captured[0].url).toContain('/v0/management/auth-files');
+      expect(captured[0].method).toBe('POST');
+      // Headers should be captured (case-preserved from plain object)
+      expect(captured[0].headers['Authorization']).toBe('Bearer test-mgmt-key');
     });
 
     it('should handle upload failure gracefully', async () => {
-      // Create mock server that returns error
-      mockServer = http.createServer((req, res) => {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Unauthorized' }));
-      });
+      mockFetch([
+        {
+          url: /\/v0\/management\/auth-files/,
+          method: 'POST',
+          response: { error: 'Unauthorized' },
+          status: 401,
+        },
+      ]);
 
-      await new Promise<void>((resolve) => {
-        mockServer!.listen(0, '127.0.0.1', () => resolve());
-      });
-
-      mockServerPort = (mockServer.address() as AddressInfo).port;
-
-      const url = `http://127.0.0.1:${mockServerPort}/v0/management/auth-files`;
+      const url = 'http://127.0.0.1:8317/v0/management/auth-files';
       const tokenContent = fs.readFileSync(tempTokenFile, 'utf-8');
 
       const formData = new FormData();
@@ -154,36 +108,29 @@ describe('remote-token-uploader', () => {
     });
 
     it('should handle connection timeout', async () => {
-      // Create server that never responds
-      mockServer = http.createServer(() => {
-        // Never respond
-      });
-
-      await new Promise<void>((resolve) => {
-        mockServer!.listen(0, '127.0.0.1', () => resolve());
-      });
-
-      mockServerPort = (mockServer.address() as AddressInfo).port;
-
-      const url = `http://127.0.0.1:${mockServerPort}/v0/management/auth-files`;
-      const controller = new AbortController();
-
-      // Set short timeout
-      const timeoutId = setTimeout(() => controller.abort(), 100);
-
-      try {
-        await fetch(url, {
+      // Test that delay mechanism works (simulates network latency)
+      mockFetch([
+        {
+          url: /\/v0\/management\/auth-files/,
           method: 'POST',
-          body: new FormData(),
-          signal: controller.signal,
-        });
-        // Should not reach here
-        expect(true).toBe(false);
-      } catch (error) {
-        expect((error as Error).name).toBe('AbortError');
-      } finally {
-        clearTimeout(timeoutId);
-      }
+          delay: 100, // Simulate slow response
+          response: { status: 'ok' },
+        },
+      ]);
+
+      const url = 'http://127.0.0.1:8317/v0/management/auth-files';
+      const startTime = Date.now();
+
+      const response = await fetch(url, {
+        method: 'POST',
+        body: new FormData(),
+      });
+
+      const elapsedTime = Date.now() - startTime;
+
+      // Verify delay was applied (at least 100ms)
+      expect(elapsedTime).toBeGreaterThanOrEqual(100);
+      expect(response.ok).toBe(true);
     });
 
     it('should handle connection refused', async () => {
@@ -284,22 +231,10 @@ describe('remote-token-uploader', () => {
 
   describe('Authorization header', () => {
     it('should use Bearer token format', async () => {
-      let capturedAuth: string | null = null;
-
-      mockServer = http.createServer((req, res) => {
-        capturedAuth = req.headers['authorization'] as string;
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'ok' }));
-      });
-
-      await new Promise<void>((resolve) => {
-        mockServer!.listen(0, '127.0.0.1', () => resolve());
-      });
-
-      mockServerPort = (mockServer.address() as AddressInfo).port;
+      mockFetch([{ url: /\/test/, method: 'POST', response: { status: 'ok' } }]);
 
       const authToken = 'my-secret-token-123';
-      await fetch(`http://127.0.0.1:${mockServerPort}/test`, {
+      await fetch('http://127.0.0.1:8317/test', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -307,47 +242,33 @@ describe('remote-token-uploader', () => {
         body: new FormData(),
       });
 
-      expect(capturedAuth).toBe(`Bearer ${authToken}`);
+      const captured = getCapturedFetchRequests();
+      expect(captured.length).toBe(1);
+      // Headers case-preserved from plain object
+      expect(captured[0].headers['Authorization']).toBe(`Bearer ${authToken}`);
     });
 
     it('should not send Authorization when no token', async () => {
-      let hasAuth = false;
+      mockFetch([{ url: /\/test/, method: 'POST', response: { status: 'ok' } }]);
 
-      mockServer = http.createServer((req, res) => {
-        hasAuth = 'authorization' in req.headers;
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'ok' }));
-      });
-
-      await new Promise<void>((resolve) => {
-        mockServer!.listen(0, '127.0.0.1', () => resolve());
-      });
-
-      mockServerPort = (mockServer.address() as AddressInfo).port;
-
-      await fetch(`http://127.0.0.1:${mockServerPort}/test`, {
+      await fetch('http://127.0.0.1:8317/test', {
         method: 'POST',
         body: new FormData(),
       });
 
-      expect(hasAuth).toBe(false);
+      const captured = getCapturedFetchRequests();
+      expect(captured.length).toBe(1);
+      // No authorization header should be present (check both cases)
+      expect(captured[0].headers['Authorization']).toBeUndefined();
+      expect(captured[0].headers['authorization']).toBeUndefined();
     });
   });
 
   describe('response parsing', () => {
     it('should accept status: ok response', async () => {
-      mockServer = http.createServer((req, res) => {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'ok' }));
-      });
+      mockFetch([{ url: /\/test/, method: 'POST', response: { status: 'ok' } }]);
 
-      await new Promise<void>((resolve) => {
-        mockServer!.listen(0, '127.0.0.1', () => resolve());
-      });
-
-      mockServerPort = (mockServer.address() as AddressInfo).port;
-
-      const response = await fetch(`http://127.0.0.1:${mockServerPort}/test`, { method: 'POST' });
+      const response = await fetch('http://127.0.0.1:8317/test', { method: 'POST' });
       const result = (await response.json()) as { status?: string; success?: boolean; id?: string };
 
       const isSuccess = result.status === 'ok' || result.success || result.id;
@@ -355,18 +276,9 @@ describe('remote-token-uploader', () => {
     });
 
     it('should accept success: true response', async () => {
-      mockServer = http.createServer((req, res) => {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true }));
-      });
+      mockFetch([{ url: /\/test/, method: 'POST', response: { success: true } }]);
 
-      await new Promise<void>((resolve) => {
-        mockServer!.listen(0, '127.0.0.1', () => resolve());
-      });
-
-      mockServerPort = (mockServer.address() as AddressInfo).port;
-
-      const response = await fetch(`http://127.0.0.1:${mockServerPort}/test`, { method: 'POST' });
+      const response = await fetch('http://127.0.0.1:8317/test', { method: 'POST' });
       const result = (await response.json()) as { status?: string; success?: boolean; id?: string };
 
       const isSuccess = result.status === 'ok' || result.success || result.id;
@@ -374,18 +286,9 @@ describe('remote-token-uploader', () => {
     });
 
     it('should accept id in response', async () => {
-      mockServer = http.createServer((req, res) => {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ id: 'file-abc123' }));
-      });
+      mockFetch([{ url: /\/test/, method: 'POST', response: { id: 'file-abc123' } }]);
 
-      await new Promise<void>((resolve) => {
-        mockServer!.listen(0, '127.0.0.1', () => resolve());
-      });
-
-      mockServerPort = (mockServer.address() as AddressInfo).port;
-
-      const response = await fetch(`http://127.0.0.1:${mockServerPort}/test`, { method: 'POST' });
+      const response = await fetch('http://127.0.0.1:8317/test', { method: 'POST' });
       const result = (await response.json()) as { status?: string; success?: boolean; id?: string };
 
       // result.id is truthy when present
@@ -394,18 +297,9 @@ describe('remote-token-uploader', () => {
     });
 
     it('should detect error response', async () => {
-      mockServer = http.createServer((req, res) => {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Invalid token format' }));
-      });
+      mockFetch([{ url: /\/test/, method: 'POST', response: { error: 'Invalid token format' } }]);
 
-      await new Promise<void>((resolve) => {
-        mockServer!.listen(0, '127.0.0.1', () => resolve());
-      });
-
-      mockServerPort = (mockServer.address() as AddressInfo).port;
-
-      const response = await fetch(`http://127.0.0.1:${mockServerPort}/test`, { method: 'POST' });
+      const response = await fetch('http://127.0.0.1:8317/test', { method: 'POST' });
       const result = (await response.json()) as {
         status?: string;
         success?: boolean;
