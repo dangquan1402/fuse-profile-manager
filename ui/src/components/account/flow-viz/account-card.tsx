@@ -8,6 +8,7 @@ import {
   formatResetTime,
   getClaudeResetTime,
   getMinClaudeQuota,
+  getModelsWithExhaustedIndicator,
 } from '@/lib/utils';
 import { PRIVACY_BLUR_CLASS } from '@/contexts/privacy-context';
 import { GripVertical, Loader2, Clock, Pause, Play } from 'lucide-react';
@@ -219,12 +220,28 @@ export function AccountCard({
                 <TooltipContent side="top" className="max-w-xs">
                   <div className="text-xs space-y-1">
                     <p className="font-medium">Model Quotas:</p>
-                    {sortModelsByPriority(quota?.models || []).map((m) => (
-                      <div key={m.name} className="flex justify-between gap-4">
-                        <span className="truncate">{m.displayName || m.name}</span>
-                        <span className="font-mono">{m.percentage}%</span>
-                      </div>
-                    ))}
+                    {sortModelsByPriority(getModelsWithExhaustedIndicator(quota?.models || [])).map(
+                      (m) => (
+                        <div key={m.name} className="flex justify-between gap-4">
+                          <span
+                            className={cn(
+                              'truncate',
+                              m.name === 'claude-exhausted' && 'text-red-500'
+                            )}
+                          >
+                            {m.displayName || m.name}
+                          </span>
+                          <span
+                            className={cn(
+                              'font-mono',
+                              m.name === 'claude-exhausted' && 'text-red-500'
+                            )}
+                          >
+                            {m.percentage}%
+                          </span>
+                        </div>
+                      )
+                    )}
                     {(() => {
                       const resetTime = getClaudeResetTime(quota?.models || []);
                       return resetTime ? (

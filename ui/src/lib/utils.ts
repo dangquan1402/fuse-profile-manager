@@ -184,3 +184,24 @@ export function getClaudeResetTime<
     null as string | null
   );
 }
+
+/**
+ * Augment models list with synthetic "Exhausted" entry when Claude/GPT models are missing.
+ * Used for tooltip display to show user that primary models are exhausted (0%).
+ */
+export function getModelsWithExhaustedIndicator<
+  T extends { name: string; displayName?: string; percentage: number },
+>(models: T[]): (T | { name: string; displayName: string; percentage: number })[] {
+  if (models.length === 0) return [];
+
+  const primaryModels = filterPrimaryModels(models);
+
+  // If primary models exist, return as-is
+  if (primaryModels.length > 0) return models;
+
+  // Primary models exhausted - prepend synthetic entry
+  return [
+    { name: 'claude-exhausted', displayName: 'Claude/GPT (Exhausted)', percentage: 0 },
+    ...models,
+  ];
+}
