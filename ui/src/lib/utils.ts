@@ -198,9 +198,10 @@ export function getClaudeResetTime<
 
 // Known primary models to show when exhausted (removed from API response)
 const KNOWN_PRIMARY_MODELS = [
-  { name: 'claude-opus-4-5', displayName: 'Claude Opus 4.5' },
+  { name: 'claude-opus-4-5-thinking', displayName: 'Claude Opus 4.5 (Thinking)' },
   { name: 'claude-sonnet-4-5', displayName: 'Claude Sonnet 4.5' },
-  { name: 'gpt-oss-120b', displayName: 'GPT-OSS 120B' },
+  { name: 'claude-sonnet-4-5-thinking', displayName: 'Claude Sonnet 4.5 (Thinking)' },
+  { name: 'gpt-oss-120b', displayName: 'GPT-OSS 120B (Medium)' },
 ];
 
 /** Model tier for visual grouping */

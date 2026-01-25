@@ -9,7 +9,6 @@ import {
   getMinClaudeQuota,
   getModelsWithTiers,
   groupModelsByTier,
-  getTierLabel,
   type ModelTier,
 } from '@/lib/utils';
 import { PRIVACY_BLUR_CLASS } from '@/contexts/privacy-context';
@@ -220,28 +219,28 @@ export function AccountCard({
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs">
-                  <div className="text-xs space-y-2">
+                  <div className="text-xs space-y-1">
                     <p className="font-medium">Model Quotas:</p>
                     {(() => {
                       const tiered = getModelsWithTiers(quota?.models || []);
                       const groups = groupModelsByTier(tiered);
                       const tierOrder: ModelTier[] = ['primary', 'gemini-3', 'gemini-2', 'other'];
-                      return tierOrder.map((tier) => {
+                      return tierOrder.map((tier, idx) => {
                         const models = groups.get(tier);
                         if (!models || models.length === 0) return null;
+                        const isFirst = tierOrder
+                          .slice(0, idx)
+                          .every((t) => !groups.get(t)?.length);
                         return (
-                          <div key={tier} className="space-y-0.5">
-                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold border-b border-border/50 pb-0.5">
-                              {getTierLabel(tier)}
-                            </div>
+                          <div key={tier}>
+                            {!isFirst && <div className="border-t border-border/40 my-1" />}
                             {models.map((m) => (
-                              <div key={m.name} className="flex justify-between gap-4 pl-1">
+                              <div key={m.name} className="flex justify-between gap-4">
                                 <span className={cn('truncate', m.exhausted && 'text-red-500')}>
                                   {m.displayName}
-                                  {m.exhausted && ' (Exhausted)'}
                                 </span>
                                 <span className={cn('font-mono', m.exhausted && 'text-red-500')}>
-                                  {m.percentage}%
+                                  {m.exhausted ? 'Exhausted' : `${m.percentage}%`}
                                 </span>
                               </div>
                             ))}
