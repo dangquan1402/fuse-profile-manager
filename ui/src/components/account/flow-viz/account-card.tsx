@@ -4,11 +4,13 @@
 
 import {
   cn,
-  sortModelsByPriority,
   formatResetTime,
   getClaudeResetTime,
   getMinClaudeQuota,
-  getModelsWithExhaustedIndicator,
+  getModelsWithTiers,
+  groupModelsByTier,
+  getTierLabel,
+  type ModelTier,
 } from '@/lib/utils';
 import { PRIVACY_BLUR_CLASS } from '@/contexts/privacy-context';
 import { GripVertical, Loader2, Clock, Pause, Play } from 'lucide-react';
@@ -218,34 +220,39 @@ export function AccountCard({
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs">
-                  <div className="text-xs space-y-1">
+                  <div className="text-xs space-y-2">
                     <p className="font-medium">Model Quotas:</p>
-                    {sortModelsByPriority(getModelsWithExhaustedIndicator(quota?.models || [])).map(
-                      (m) => (
-                        <div key={m.name} className="flex justify-between gap-4">
-                          <span
-                            className={cn(
-                              'truncate',
-                              m.name === 'claude-exhausted' && 'text-red-500'
-                            )}
-                          >
-                            {m.displayName || m.name}
-                          </span>
-                          <span
-                            className={cn(
-                              'font-mono',
-                              m.name === 'claude-exhausted' && 'text-red-500'
-                            )}
-                          >
-                            {m.percentage}%
-                          </span>
-                        </div>
-                      )
-                    )}
+                    {(() => {
+                      const tiered = getModelsWithTiers(quota?.models || []);
+                      const groups = groupModelsByTier(tiered);
+                      const tierOrder: ModelTier[] = ['primary', 'gemini-3', 'gemini-2', 'other'];
+                      return tierOrder.map((tier) => {
+                        const models = groups.get(tier);
+                        if (!models || models.length === 0) return null;
+                        return (
+                          <div key={tier} className="space-y-0.5">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold border-b border-border/30 pb-0.5">
+                              {getTierLabel(tier)}
+                            </div>
+                            {models.map((m) => (
+                              <div key={m.name} className="flex justify-between gap-4 pl-1">
+                                <span className={cn('truncate', m.exhausted && 'text-red-500')}>
+                                  {m.displayName}
+                                  {m.exhausted && ' (Exhausted)'}
+                                </span>
+                                <span className={cn('font-mono', m.exhausted && 'text-red-500')}>
+                                  {m.percentage}%
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      });
+                    })()}
                     {(() => {
                       const resetTime = getClaudeResetTime(quota?.models || []);
                       return resetTime ? (
-                        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
+                        <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
                           <Clock className="w-3 h-3 text-blue-400" />
                           <span className="text-blue-400 font-medium">
                             Resets {formatResetTime(resetTime)}

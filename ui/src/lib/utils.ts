@@ -196,23 +196,102 @@ export function getClaudeResetTime<
   );
 }
 
+// Known primary models to show when exhausted (removed from API response)
+const KNOWN_PRIMARY_MODELS = [
+  { name: 'claude-opus-4-5', displayName: 'Claude Opus 4.5' },
+  { name: 'claude-sonnet-4-5', displayName: 'Claude Sonnet 4.5' },
+  { name: 'gpt-oss-120b', displayName: 'GPT-OSS 120B' },
+];
+
+/** Model tier for visual grouping */
+export type ModelTier = 'primary' | 'gemini-3' | 'gemini-2' | 'other';
+
+/** Model with tier info for grouped display */
+export interface TieredModel {
+  name: string;
+  displayName: string;
+  percentage: number;
+  tier: ModelTier;
+  exhausted?: boolean;
+}
+
+/** Get tier label for display */
+export function getTierLabel(tier: ModelTier): string {
+  switch (tier) {
+    case 'primary':
+      return 'Claude & GPT';
+    case 'gemini-3':
+      return 'Gemini 3';
+    case 'gemini-2':
+      return 'Gemini 2.5';
+    case 'other':
+      return 'Other';
+  }
+}
+
+/** Determine tier for a model */
+function getModelTier(name: string): ModelTier {
+  const lower = name.toLowerCase();
+  if (lower.includes('claude') || lower.includes('gpt')) return 'primary';
+  if (lower.includes('gemini 3') || lower.includes('gemini-3')) return 'gemini-3';
+  if (lower.includes('gemini 2') || lower.includes('gemini-2')) return 'gemini-2';
+  return 'other';
+}
+
 /**
- * Augment models list with synthetic "Exhausted" entry when Claude/GPT models are missing.
- * Used for tooltip display to show user that primary models are exhausted (0%).
+ * Convert models to tiered format with exhausted primary models injected.
+ * Groups models by tier for visual display in tooltip.
  */
-export function getModelsWithExhaustedIndicator<
+export function getModelsWithTiers<
   T extends { name: string; displayName?: string; percentage: number },
->(models: T[]): (T | { name: string; displayName: string; percentage: number })[] {
+>(models: T[]): TieredModel[] {
   if (models.length === 0) return [];
 
   const primaryModels = filterPrimaryModels(models);
+  const result: TieredModel[] = [];
 
-  // If primary models exist, return as-is
-  if (primaryModels.length > 0) return models;
+  // If primary models exhausted, add known ones with 0%
+  if (primaryModels.length === 0) {
+    for (const known of KNOWN_PRIMARY_MODELS) {
+      result.push({
+        name: known.name,
+        displayName: known.displayName,
+        percentage: 0,
+        tier: 'primary',
+        exhausted: true,
+      });
+    }
+  }
 
-  // Primary models exhausted - prepend synthetic entry
-  return [
-    { name: 'claude-exhausted', displayName: 'Claude/GPT (Exhausted)', percentage: 0 },
-    ...models,
-  ];
+  // Add all models with tier info
+  for (const m of models) {
+    const displayName = m.displayName || m.name;
+    result.push({
+      name: m.name,
+      displayName,
+      percentage: m.percentage,
+      tier: getModelTier(displayName),
+    });
+  }
+
+  // Sort by tier priority, then alphabetically within tier
+  const tierOrder: ModelTier[] = ['primary', 'gemini-3', 'gemini-2', 'other'];
+  return result.sort((a, b) => {
+    const tierDiff = tierOrder.indexOf(a.tier) - tierOrder.indexOf(b.tier);
+    if (tierDiff !== 0) return tierDiff;
+    return a.displayName.localeCompare(b.displayName);
+  });
+}
+
+/**
+ * Group tiered models by tier for sectioned display
+ */
+export function groupModelsByTier(models: TieredModel[]): Map<ModelTier, TieredModel[]> {
+  const groups = new Map<ModelTier, TieredModel[]>();
+  for (const m of models) {
+    const existing = groups.get(m.tier) || [];
+    existing.push(m);
+    groups.set(m.tier, existing);
+  }
+  return groups;
 }
