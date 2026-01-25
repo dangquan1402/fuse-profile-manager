@@ -264,16 +264,9 @@ export function AccountCard({
               </Tooltip>
             </TooltipProvider>
           ) : quota?.error ? (
-            quota.error === 'Account is paused' ? (
-              <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                <Pause className="w-3 h-3" />
-                <span className="text-[9px] font-medium uppercase tracking-wide">Paused</span>
-              </div>
-            ) : (
-              <div className="text-[8px] text-muted-foreground/60 truncate" title={quota.error}>
-                {quota.error.length > 20 ? `${quota.error.slice(0, 18)}...` : quota.error}
-              </div>
-            )
+            <div className="text-[8px] text-muted-foreground/60 truncate" title={quota.error}>
+              {quota.error.length > 20 ? `${quota.error.slice(0, 18)}...` : quota.error}
+            </div>
           ) : null}
         </div>
       )}
