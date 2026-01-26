@@ -282,34 +282,15 @@ test_case "Edge case: Missing parent directories" "Handles missing .claude direc
 "
 
 # ============================================================================
-# TEST SECTION 7: SETTINGS.JSON HOOK CLEANUP
+# TEST SECTION 7: PER-PROFILE HOOK BEHAVIOR (Global settings untouched)
 # ============================================================================
 
 echo ""
 echo "========================================"
-echo "SECTION 7: SETTINGS.JSON HOOK CLEANUP"
+echo "SECTION 7: PER-PROFILE HOOK BEHAVIOR"
 echo "========================================"
 
-test_case "Hook cleanup: Removes CCS WebSearch hook from settings.json" "Hook removed" bash -c "
-    # Setup: Create settings.json with CCS hook
-    mkdir -p '$TEST_CLAUDE_DIR'
-    cat > '$TEST_CLAUDE_DIR/settings.json' << 'EOFINNER'
-{
-  \"hooks\": {
-    \"PreToolUse\": [
-      { \"matcher\": \"WebSearch\", \"hooks\": [{ \"command\": \"node ~/.ccs/hooks/websearch-transformer.cjs\" }] }
-    ]
-  }
-}
-EOFINNER
-    # Install then uninstall
-    HOME='$TEST_HOME' '$CCS_PATH' --install > /dev/null 2>&1
-    HOME='$TEST_HOME' '$CCS_PATH' --uninstall > /dev/null 2>&1
-    # Check hook removed
-    ! grep -q 'websearch-transformer' '$TEST_CLAUDE_DIR/settings.json'
-"
-
-test_case "Hook cleanup: Preserves user-defined WebSearch hooks" "User hooks kept" bash -c "
+test_case "Per-profile: Uninstall does NOT touch global settings.json" "Global settings unchanged" bash -c "
     # Setup: Create settings.json with user hook
     mkdir -p '$TEST_CLAUDE_DIR'
     cat > '$TEST_CLAUDE_DIR/settings.json' << 'EOFINNER'
@@ -323,35 +304,41 @@ test_case "Hook cleanup: Preserves user-defined WebSearch hooks" "User hooks kep
 EOFINNER
     # Uninstall
     HOME='$TEST_HOME' '$CCS_PATH' --uninstall > /dev/null 2>&1
-    # Check user hook preserved
+    # Verify global settings unchanged
     grep -q 'my-custom-hook' '$TEST_CLAUDE_DIR/settings.json'
 "
 
-test_case "Hook cleanup: Handles mixed CCS and user hooks" "Only CCS hook removed" bash -c "
-    # Setup: Create settings.json with both CCS and user hooks
+test_case "Per-profile: Uninstall preserves user hooks in global settings" "User hooks in global preserved" bash -c "
+    # Setup: Create settings.json with CCS hook (old format - shouldn't be touched)
     mkdir -p '$TEST_CLAUDE_DIR'
     cat > '$TEST_CLAUDE_DIR/settings.json' << 'EOFINNER'
 {
   \"hooks\": {
     \"PreToolUse\": [
       { \"matcher\": \"WebSearch\", \"hooks\": [{ \"command\": \"node ~/.ccs/hooks/websearch-transformer.cjs\" }] },
-      { \"matcher\": \"WebSearch\", \"hooks\": [{ \"command\": \"my-custom-hook.sh\" }] },
-      { \"matcher\": \"Bash\", \"hooks\": [{ \"command\": \"bash-hook.sh\" }] }
+      { \"matcher\": \"WebSearch\", \"hooks\": [{ \"command\": \"my-custom-hook.sh\" }] }
     ]
   }
 }
 EOFINNER
-    # Uninstall
+    # Uninstall - should NOT modify global settings
     HOME='$TEST_HOME' '$CCS_PATH' --uninstall > /dev/null 2>&1
-    # Check CCS hook removed
-    ! grep -q 'websearch-transformer' '$TEST_CLAUDE_DIR/settings.json' &&
-    # Check user WebSearch hook preserved
-    grep -q 'my-custom-hook' '$TEST_CLAUDE_DIR/settings.json' &&
-    # Check other hooks preserved
-    grep -q 'bash-hook' '$TEST_CLAUDE_DIR/settings.json'
+    # Both hooks should still be in global settings (not touched)
+    grep -q 'websearch-transformer' '$TEST_CLAUDE_DIR/settings.json' &&
+    grep -q 'my-custom-hook' '$TEST_CLAUDE_DIR/settings.json'
 "
 
-test_case "Hook cleanup: Handles missing settings.json" "No error when settings.json missing" bash -c "
+test_case "Per-profile: Migration marker cleanup on uninstall" "Marker file removed" bash -c "
+    # Setup: Create ~/.ccs/.hook-migrated marker
+    mkdir -p '$TEST_HOME/.ccs'
+    echo '2026-01-25T00:00:00.000Z' > '$TEST_HOME/.ccs/.hook-migrated'
+    # Uninstall
+    HOME='$TEST_HOME' '$CCS_PATH' --uninstall > /dev/null 2>&1
+    # Verify marker removed
+    [[ ! -f '$TEST_HOME/.ccs/.hook-migrated' ]]
+"
+
+test_case "Per-profile: Handles missing settings.json" "No error when settings.json missing" bash -c "
     # Ensure settings.json doesn't exist
     rm -f '$TEST_CLAUDE_DIR/settings.json'
     HOME='$TEST_HOME' '$CCS_PATH' --uninstall > /dev/null 2>&1
