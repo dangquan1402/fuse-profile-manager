@@ -12,6 +12,7 @@ import {
   saveUnifiedConfig,
   isUnifiedMode,
 } from '../../config/unified-config-loader';
+import { ensureProfileHooks } from '../../utils/websearch/profile-hook-injector';
 import type { ModelMapping, CreateApiProfileResult, RemoveApiProfileResult } from './profile-types';
 
 /** Check if URL is an OpenRouter endpoint */
@@ -43,6 +44,10 @@ function createSettingsFile(
   };
 
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+
+  // Inject WebSearch hooks into profile settings
+  ensureProfileHooks(name);
+
   return settingsPath;
 }
 
@@ -100,6 +105,9 @@ function createApiProfileUnified(
   }
 
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+
+  // Inject WebSearch hooks into profile settings
+  ensureProfileHooks(name);
 
   const config = loadOrCreateUnifiedConfig();
   config.profiles[name] = {
