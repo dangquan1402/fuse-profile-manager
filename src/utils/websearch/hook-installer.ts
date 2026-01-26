@@ -11,7 +11,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { info, warn } from '../ui';
 import { getWebSearchConfig } from '../../config/unified-config-loader';
-import { getHookPath, ensureHookConfig } from './hook-config';
+import { getHookPath, ensureHookConfig, removeHookConfig } from './hook-config';
 
 // Re-export from hook-config for backward compatibility
 export { getHookPath, getWebSearchHookConfig } from './hook-config';
@@ -115,7 +115,8 @@ export function uninstallWebSearchHook(): boolean {
       }
     }
 
-    // TODO: Optionally remove from settings.json
+    // Remove from settings.json
+    removeHookConfig();
 
     return true;
   } catch (error) {
