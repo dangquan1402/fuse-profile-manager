@@ -70,24 +70,19 @@ export function RouterProviderPicker({ providers, value, onChange }: RouterProvi
         </SelectContent>
       </Select>
 
-      {/* Model dropdown - shows models from catalog */}
+      {/* Model dropdown - shows model IDs from catalog */}
       <Select
         value={value.model}
         onValueChange={(model) => onChange({ ...value, model })}
         disabled={!value.provider}
       >
-        <SelectTrigger className="flex-1 min-w-[200px]">
+        <SelectTrigger className="flex-1 min-w-[280px]">
           <SelectValue placeholder={value.provider ? 'Select model' : 'Select provider first'} />
         </SelectTrigger>
         <SelectContent>
           {providerModels.map((m) => (
             <SelectItem key={m.id} value={m.id}>
-              <div className="flex flex-col">
-                <span>{m.name}</span>
-                {m.description && (
-                  <span className="text-xs text-muted-foreground">{m.description}</span>
-                )}
-              </div>
+              <span className="font-mono text-sm">{m.id}</span>
             </SelectItem>
           ))}
         </SelectContent>
