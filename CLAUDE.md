@@ -2,6 +2,19 @@
 
 AI-facing guidance for Claude Code when working with this repository.
 
+## Critical Constraints (NEVER VIOLATE)
+
+### Test Isolation (MANDATORY)
+
+**NEVER touch the user's real `~/.ccs/` or `~/.claude/` directories during tests.**
+
+- All code accessing CCS paths MUST use `getCcsDir()` from `src/utils/config-manager.ts`
+- This function respects `CCS_HOME` env var for test isolation
+- **WRONG:** `path.join(os.homedir(), '.ccs', ...)`
+- **CORRECT:** `path.join(getCcsDir(), ...)`
+
+Tests set `process.env.CCS_HOME` to a temp directory. Code using `os.homedir()` directly will modify the user's real files.
+
 ## Core Function
 
 CLI wrapper for instant switching between multiple Claude accounts and alternative models (GLM, GLMT, Kimi). See README.md for user documentation.
@@ -96,9 +109,11 @@ bun run validate            # Step 3: Final check (must pass)
 
 ## Critical Constraints (NEVER VIOLATE)
 
-1. **NO EMOJIS** - ASCII only: [OK], [!], [X], [i]
+1. **NO EMOJIS in CLI output** - Terminal output uses ASCII only: [OK], [!], [X], [i]
+   - **Scope:** CCS CLI terminal output (`src/` code that prints to stdout/stderr)
+   - **Does NOT apply to:** PR descriptions, commit messages, documentation, comments, AI conversations
 2. **TTY-aware colors** - Respect NO_COLOR env var
-3. **Non-invasive** - NEVER modify `~/.claude/settings.json`
+3. **Non-invasive** - NEVER modify `~/.claude/settings.json` without explicit user request and confirmation (exception: `ccs persist` command)
 4. **Cross-platform parity** - bash/PowerShell/Node.js must behave identically
 5. **CLI documentation** - ALL CLI changes MUST update respective `--help` handler (see table below)
 6. **Idempotent** - All install operations safe to run multiple times
@@ -109,10 +124,15 @@ bun run validate            # Step 3: Final check (must pass)
 | Command | Help Handler Location |
 |---------|----------------------|
 | `ccs --help` | `src/commands/help-command.ts` |
+| `ccs api --help` | `src/commands/api-command.ts` → `showHelp()` |
+| `ccs cleanup --help` | `src/commands/cleanup-command.ts` → `printHelp()` |
 | `ccs cliproxy --help` | `src/commands/cliproxy-command.ts` → `showHelp()` |
-| `ccs auth --help` | `src/commands/auth-command.ts` |
-| `ccs api --help` | `src/commands/api-command.ts` |
-| `ccs copilot --help` | `src/commands/copilot-command.ts` |
+| `ccs config --help` | `src/commands/config-command.ts` → `showHelp()` |
+| `ccs copilot --help` | `src/commands/copilot-command.ts` → `handleHelp()` |
+| `ccs doctor --help` | `src/commands/doctor-command.ts` → `showHelp()` |
+| `ccs migrate --help` | `src/commands/migrate-command.ts` → `printMigrateHelp()` |
+| `ccs persist --help` | `src/commands/persist-command.ts` → `showHelp()` |
+| `ccs setup --help` | `src/commands/setup-command.ts` → `showHelp()` |
 
 **Note:** `lib/ccs` and `lib/ccs.ps1` are bootstrap wrappers only—they delegate to Node.js and contain no help text.
 
@@ -227,7 +247,7 @@ Windows fallback: Copies if symlinks unavailable
 - `child_process.spawn`, handle SIGINT/SIGTERM
 
 ### Terminal Output
-- ASCII only: [OK], [!], [X], [i] (NO emojis)
+- ASCII only: [OK], [!], [X], [i] (NO emojis in CLI output)
 - TTY detect before colors, respect NO_COLOR
 - Box borders for errors: ╔═╗║╚╝
 
@@ -346,7 +366,7 @@ rm -rf ~/.ccs             # Clean environment
 - [ ] Local `docs/` updated — if architecture changed
 
 **Standards:**
-- [ ] ASCII only (NO emojis), NO_COLOR respected
+- [ ] CLI output ASCII only (NO emojis in terminal output), NO_COLOR respected
 - [ ] YAGNI/KISS/DRY alignment verified
 - [ ] No manual version bump or tags
 

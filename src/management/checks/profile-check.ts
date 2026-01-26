@@ -4,9 +4,9 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
 import { ok, fail, warn, info } from '../../utils/ui';
 import { HealthCheck, IHealthChecker, createSpinner } from './types';
+import { getCcsDir } from '../../utils/config-manager';
 
 const ora = createSpinner();
 
@@ -18,7 +18,7 @@ export class ProfilesChecker implements IHealthChecker {
   private readonly ccsDir: string;
 
   constructor() {
-    this.ccsDir = path.join(os.homedir(), '.ccs');
+    this.ccsDir = getCcsDir();
   }
 
   run(results: HealthCheck): void {
@@ -130,7 +130,7 @@ export class InstancesChecker implements IHealthChecker {
   private readonly ccsDir: string;
 
   constructor() {
-    this.ccsDir = path.join(os.homedir(), '.ccs');
+    this.ccsDir = getCcsDir();
   }
 
   run(results: HealthCheck): void {
@@ -169,7 +169,7 @@ export class DelegationChecker implements IHealthChecker {
   private readonly ccsDir: string;
 
   constructor() {
-    this.ccsDir = path.join(os.homedir(), '.ccs');
+    this.ccsDir = getCcsDir();
   }
 
   run(results: HealthCheck): void {
@@ -193,16 +193,9 @@ export class DelegationChecker implements IHealthChecker {
       return;
     }
 
-    // Check profile validity using DelegationValidator
+    // Check profile validity using DelegationValidator (dynamic discovery)
     const { DelegationValidator } = require('../../utils/delegation-validator');
-    const readyProfiles: string[] = [];
-
-    for (const profile of ['glm', 'kimi']) {
-      const validation = DelegationValidator.validate(profile);
-      if (validation.valid) {
-        readyProfiles.push(profile);
-      }
-    }
+    const readyProfiles = DelegationValidator.getReadyProfiles();
 
     if (readyProfiles.length === 0) {
       spinner.warn();

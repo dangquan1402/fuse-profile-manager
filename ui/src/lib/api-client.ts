@@ -92,6 +92,8 @@ export interface OAuthAccount {
   pausedAt?: string;
   /** Account tier: free or paid (Pro/Ultra combined) */
   tier?: 'free' | 'paid' | 'unknown';
+  /** GCP Project ID (Antigravity only) - read-only */
+  projectId?: string;
 }
 
 export interface AuthStatus {
@@ -275,6 +277,10 @@ export interface CliproxyUpdateCheckResult {
   latestVersion: string;
   fromCache: boolean;
   checkedAt: number; // Unix timestamp of last check
+  // Backend info
+  backend: 'original' | 'plus';
+  backendLabel: string;
+  // Stability fields
   isStable: boolean; // Whether current version is at or below max stable
   maxStableVersion: string; // Maximum stable version (e.g., "6.6.80")
   stabilityMessage?: string; // Warning message if running unstable version
@@ -418,6 +424,30 @@ export const api = {
           `/cliproxy/auth/accounts/${provider}/${accountId}/resume`,
           { method: 'POST' }
         ),
+      /** Solo mode: activate one account, pause all others */
+      solo: (provider: string, accountId: string) =>
+        request<{ activated: string; paused: string[] }>('/accounts/solo', {
+          method: 'POST',
+          body: JSON.stringify({ provider, accountId }),
+        }),
+      /** Bulk pause multiple accounts */
+      bulkPause: (provider: string, accountIds: string[]) =>
+        request<{ succeeded: string[]; failed: Array<{ id: string; reason: string }> }>(
+          '/accounts/bulk-pause',
+          {
+            method: 'POST',
+            body: JSON.stringify({ provider, accountIds }),
+          }
+        ),
+      /** Bulk resume multiple accounts */
+      bulkResume: (provider: string, accountIds: string[]) =>
+        request<{ succeeded: string[]; failed: Array<{ id: string; reason: string }> }>(
+          '/accounts/bulk-resume',
+          {
+            method: 'POST',
+            body: JSON.stringify({ provider, accountIds }),
+          }
+        ),
     },
     // OAuth flow
     auth: {
@@ -501,6 +531,14 @@ export const api = {
       request<CliproxyServerConfig>('/cliproxy-server', {
         method: 'PUT',
         body: JSON.stringify(config),
+      }),
+    /** Get backend setting */
+    getBackend: () => request<{ backend: 'original' | 'plus' }>('/cliproxy-server/backend'),
+    /** Update backend setting */
+    updateBackend: (backend: 'original' | 'plus', force = false) =>
+      request<{ backend: 'original' | 'plus' }>('/cliproxy-server/backend', {
+        method: 'PUT',
+        body: JSON.stringify({ backend, force }),
       }),
     /** Test remote proxy connection */
     test: (params: {

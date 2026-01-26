@@ -127,6 +127,7 @@ export function usePauseAccount() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cliproxy-accounts'] });
       queryClient.invalidateQueries({ queryKey: ['cliproxy-auth'] });
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-stats'] });
       toast.success('Account paused');
     },
     onError: (error: Error) => {
@@ -144,7 +145,79 @@ export function useResumeAccount() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cliproxy-accounts'] });
       queryClient.invalidateQueries({ queryKey: ['cliproxy-auth'] });
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-stats'] });
       toast.success('Account resumed');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+export function useSoloAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ provider, accountId }: { provider: string; accountId: string }) =>
+      api.cliproxy.accounts.solo(provider, accountId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-auth'] });
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-stats'] });
+      const pausedCount = data.paused.length;
+      toast.success(
+        `Solo mode: paused ${pausedCount} other account${pausedCount !== 1 ? 's' : ''}`
+      );
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+export function useBulkPauseAccounts() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ provider, accountIds }: { provider: string; accountIds: string[] }) =>
+      api.cliproxy.accounts.bulkPause(provider, accountIds),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-auth'] });
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-stats'] });
+      toast.success(
+        `Paused ${data.succeeded.length} account${data.succeeded.length !== 1 ? 's' : ''}`
+      );
+      if (data.failed.length > 0) {
+        toast.warning(
+          `${data.failed.length} account${data.failed.length !== 1 ? 's' : ''} failed to pause`
+        );
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+export function useBulkResumeAccounts() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ provider, accountIds }: { provider: string; accountIds: string[] }) =>
+      api.cliproxy.accounts.bulkResume(provider, accountIds),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-auth'] });
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-stats'] });
+      toast.success(
+        `Resumed ${data.succeeded.length} account${data.succeeded.length !== 1 ? 's' : ''}`
+      );
+      if (data.failed.length > 0) {
+        toast.warning(
+          `${data.failed.length} account${data.failed.length !== 1 ? 's' : ''} failed to resume`
+        );
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -333,9 +406,43 @@ export function useCliproxyUpdateCheck() {
   return useQuery({
     queryKey: ['cliproxy-update-check'],
     queryFn: () => api.cliproxy.updateCheck(),
-    staleTime: 60 * 60 * 1000, // 1 hour (matches backend cache)
-    refetchInterval: 60 * 60 * 1000, // Refresh every hour
-    refetchOnWindowFocus: false, // Don't refresh on window focus (save API calls)
+    staleTime: 5 * 60 * 1000, // 5 minutes (reduced from 1 hour for faster backend switch response)
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+    refetchOnWindowFocus: true, // Refetch on window focus to catch backend changes
+  });
+}
+
+// ==================== Backend Management ====================
+
+/**
+ * Hook for switching CLIProxy backend (original vs plus)
+ * Invalidates all backend-dependent queries to ensure UI consistency
+ */
+export function useUpdateBackend() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ['update-backend'], // Used by ProxyStatusWidget to detect backend switching
+    mutationFn: ({ backend, force = false }: { backend: 'original' | 'plus'; force?: boolean }) =>
+      api.cliproxyServer.updateBackend(backend, force),
+    onSuccess: () => {
+      // Invalidate all queries that depend on backend setting
+      // Use refetchType: 'all' to force immediate refetch even if query is stale
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-update-check'], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-versions'], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-server-config'], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ['proxy-status'] });
+      queryClient.invalidateQueries({ queryKey: ['cliproxy-stats'] });
+      toast.success('Backend updated');
+    },
+    onError: (error: Error) => {
+      // Handle 409 conflict (proxy running)
+      if (error.message.includes('Proxy is running')) {
+        toast.error('Stop the proxy first to change backend');
+      } else {
+        toast.error(error.message);
+      }
+    },
   });
 }
 
@@ -345,8 +452,8 @@ export function useCliproxyVersions() {
   return useQuery({
     queryKey: ['cliproxy-versions'],
     queryFn: () => api.cliproxy.versions(),
-    staleTime: 60 * 60 * 1000, // 1 hour (matches backend cache)
-    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes (reduced for faster backend switch response)
+    refetchOnWindowFocus: true, // Refetch on focus to catch backend changes
   });
 }
 

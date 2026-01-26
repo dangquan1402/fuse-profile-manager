@@ -34,9 +34,21 @@ import {
 import {
   CLIPROXY_MAX_STABLE_VERSION,
   CLIPROXY_FAULTY_RANGE,
+  DEFAULT_BACKEND,
 } from '../../cliproxy/platform-detector';
+import { loadOrCreateUnifiedConfig } from '../../config/unified-config-loader';
 
 const router = Router();
+
+/** Get configured backend from config */
+function getConfiguredBackend() {
+  try {
+    const config = loadOrCreateUnifiedConfig();
+    return config.cliproxy?.backend || DEFAULT_BACKEND;
+  } catch {
+    return DEFAULT_BACKEND;
+  }
+}
 
 /**
  * Extract status code and model from error log file (lightweight parsing)
@@ -204,7 +216,8 @@ router.post('/proxy-stop', async (_req: Request, res: Response): Promise<void> =
  */
 router.get('/update-check', async (_req: Request, res: Response): Promise<void> => {
   try {
-    const result = await checkCliproxyUpdate();
+    const backend = getConfiguredBackend();
+    const result = await checkCliproxyUpdate(backend);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
@@ -549,8 +562,9 @@ router.get('/quota/:provider/:accountId', async (req: Request, res: Response): P
  */
 router.get('/versions', async (_req: Request, res: Response): Promise<void> => {
   try {
-    const result = await fetchAllVersions();
-    const currentVersion = getInstalledCliproxyVersion();
+    const backend = getConfiguredBackend();
+    const result = await fetchAllVersions(false, backend);
+    const currentVersion = getInstalledCliproxyVersion(backend);
 
     res.json({
       ...result,
@@ -612,7 +626,8 @@ router.post('/install', async (req: Request, res: Response): Promise<void> => {
     await new Promise((r) => setTimeout(r, 500));
 
     // Install the version
-    await installCliproxyVersion(version, true);
+    const backend = getConfiguredBackend();
+    await installCliproxyVersion(version, true, backend);
 
     res.json({
       success: true,

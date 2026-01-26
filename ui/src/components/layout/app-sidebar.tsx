@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home,
   Key,
@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/sidebar';
 import { CcsLogo } from '@/components/shared/ccs-logo';
 import { useSidebar } from '@/hooks/use-sidebar';
+import { useCliproxyUpdateCheck } from '@/hooks/use-cliproxy';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -87,7 +88,20 @@ const navGroups = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { state } = useSidebar();
+  const { data: updateCheck } = useCliproxyUpdateCheck();
+
+  // Dynamic label for CLIProxy based on backend
+  const cliproxyLabel = updateCheck?.backendLabel ?? 'CLIProxy';
+
+  // Helper to get dynamic label (for CLIProxy route)
+  const getItemLabel = (item: { path: string; label: string }) => {
+    if (item.path === '/cliproxy') {
+      return cliproxyLabel;
+    }
+    return item.label;
+  };
 
   // Helper to check if a route is active (exact match)
   const isRouteActive = (path: string) => location.pathname === path;
@@ -120,11 +134,16 @@ export function AppSidebar() {
                         className="group/collapsible"
                       >
                         <SidebarMenuItem>
+                          {/* Click navigates to overview AND opens submenu */}
                           <CollapsibleTrigger asChild>
-                            <SidebarMenuButton tooltip={item.label}>
+                            <SidebarMenuButton
+                              tooltip={getItemLabel(item)}
+                              isActive={isParentActive(item.children)}
+                              onClick={() => navigate(item.path)}
+                            >
                               {item.icon && <item.icon className="w-4 h-4" />}
                               <span className="group-data-[collapsible=icon]:hidden">
-                                {item.label}
+                                {getItemLabel(item)}
                               </span>
                               <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 group-data-[collapsible=icon]:hidden" />
                             </SidebarMenuButton>
@@ -151,12 +170,12 @@ export function AppSidebar() {
                       <SidebarMenuButton
                         asChild
                         isActive={isRouteActive(item.path)}
-                        tooltip={item.label}
+                        tooltip={getItemLabel(item)}
                       >
                         <Link to={item.path}>
                           {item.icon && <item.icon className="w-4 h-4" />}
                           <span className="group-data-[collapsible=icon]:hidden flex-1">
-                            {item.label}
+                            {getItemLabel(item)}
                           </span>
                           {item.badge && (
                             <Tooltip>

@@ -4,7 +4,7 @@
  */
 
 import * as fs from 'fs';
-import { BinaryManagerConfig } from '../types';
+import { BinaryManagerConfig, CLIProxyBackend } from '../types';
 import {
   checkForUpdates,
   fetchLatestVersion,
@@ -15,7 +15,11 @@ import { downloadAndInstall, deleteBinary, getBinaryPath } from './installer';
 import { info, warn } from '../../utils/ui';
 import { isCliproxyRunning } from '../stats-fetcher';
 import { CLIPROXY_DEFAULT_PORT } from '../config-generator';
-import { CLIPROXY_MAX_STABLE_VERSION, CLIPROXY_FAULTY_RANGE } from '../platform-detector';
+import {
+  CLIPROXY_MAX_STABLE_VERSION,
+  CLIPROXY_FAULTY_RANGE,
+  DEFAULT_BACKEND,
+} from '../platform-detector';
 
 /** Log helper */
 function log(message: string, verbose: boolean): void {
@@ -47,7 +51,9 @@ function clampToMaxStable(version: string | undefined, verbose: boolean): string
 
 /** Handle auto-update when binary exists */
 async function handleAutoUpdate(config: BinaryManagerConfig, verbose: boolean): Promise<void> {
-  const updateResult = await checkForUpdates(config.binPath, config.version, verbose);
+  const backend: CLIProxyBackend = config.backend ?? DEFAULT_BACKEND;
+  const backendLabel = backend === 'plus' ? 'CLIProxy Plus' : 'CLIProxy';
+  const updateResult = await checkForUpdates(config.binPath, config.version, verbose, backend);
   const currentVersion = updateResult.currentVersion;
   const latestVersion = updateResult.latestVersion;
 
@@ -55,22 +61,11 @@ async function handleAutoUpdate(config: BinaryManagerConfig, verbose: boolean): 
   if (isVersionFaulty(currentVersion)) {
     console.log(
       warn(
-        `CLIProxy Plus v${currentVersion} has known bugs (v${CLIPROXY_FAULTY_RANGE.min.replace(/-\d+$/, '')}-${CLIPROXY_FAULTY_RANGE.max.replace(/-\d+$/, '')}). ` +
-          `Upgrade to v${CLIPROXY_MAX_STABLE_VERSION.replace(/-\d+$/, '')} recommended.`
+        `${backendLabel} v${currentVersion} has known bugs (v${CLIPROXY_FAULTY_RANGE.min.replace(/-\d+$/, '')}-${CLIPROXY_FAULTY_RANGE.max.replace(/-\d+$/, '')}). ` +
+          `Upgrade to latest stable recommended.`
       )
     );
-    console.log(
-      info(
-        `Run "ccs cliproxy install ${CLIPROXY_MAX_STABLE_VERSION.replace(/-\d+$/, '')}" to upgrade`
-      )
-    );
-  } else if (isAboveMaxStable(currentVersion)) {
-    // Version newer than max stable (experimental)
-    console.log(
-      warn(
-        `CLIProxy Plus v${currentVersion} is experimental (above stable v${CLIPROXY_MAX_STABLE_VERSION.replace(/-\d+$/, '')})`
-      )
-    );
+    console.log(info(`Run "ccs cliproxy install" to upgrade to latest stable`));
   }
 
   if (!updateResult.hasUpdate) return;
@@ -84,16 +79,16 @@ async function handleAutoUpdate(config: BinaryManagerConfig, verbose: boolean): 
 
   const proxyRunning = await isCliproxyRunning(CLIPROXY_DEFAULT_PORT);
   const latestNote = isAboveMaxStable(latestVersion) ? ` (latest v${latestVersion} unstable)` : '';
-  const updateMsg = `CLIProxy Plus update: v${currentVersion} -> v${targetVersion}${latestNote}`;
+  const updateMsg = `${backendLabel} update: v${currentVersion} -> v${targetVersion}${latestNote}`;
 
   if (proxyRunning) {
     console.log(info(updateMsg));
     console.log(info('Run "ccs cliproxy stop" then restart to apply update'));
-    log('Skipping update: CLIProxy Plus is currently running', verbose);
+    log(`Skipping update: ${backendLabel} is currently running`, verbose);
   } else {
     console.log(info(updateMsg));
-    console.log(info('Updating CLIProxy Plus...'));
-    deleteBinary(config.binPath, verbose);
+    console.log(info(`Updating ${backendLabel}...`));
+    deleteBinary(config.binPath, verbose, backend);
     config.version = targetVersion;
     await downloadAndInstall(config, verbose);
   }
@@ -105,7 +100,8 @@ async function handleAutoUpdate(config: BinaryManagerConfig, verbose: boolean): 
  */
 export async function ensureBinary(config: BinaryManagerConfig): Promise<string> {
   const verbose = config.verbose;
-  const binaryPath = getBinaryPath(config.binPath);
+  const backend: CLIProxyBackend = config.backend ?? DEFAULT_BACKEND;
+  const binaryPath = getBinaryPath(config.binPath, backend);
 
   // Binary exists - check for updates unless forceVersion
   if (fs.existsSync(binaryPath)) {
@@ -131,7 +127,7 @@ export async function ensureBinary(config: BinaryManagerConfig): Promise<string>
 
   if (!config.forceVersion) {
     try {
-      const latestVersion = await fetchLatestVersion(verbose);
+      const latestVersion = await fetchLatestVersion(verbose, backend);
       const targetVersion = clampToMaxStable(latestVersion, verbose);
       if (targetVersion && isNewerVersion(targetVersion, config.version)) {
         log(`Using version: ${targetVersion} (instead of ${config.version})`, verbose);

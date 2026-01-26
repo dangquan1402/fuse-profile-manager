@@ -53,6 +53,8 @@ ccs config
 # Opens http://localhost:3000
 ```
 
+Want to run the dashboard in Docker? See `docker/README.md`.
+
 ### 3. Configure Your Accounts
 
 The dashboard provides visual management for all account types:
@@ -93,14 +95,18 @@ The dashboard provides visual management for all account types:
 | **Kiro** | OAuth | `ccs kiro` | AWS CodeWhisperer (Claude-powered) |
 | **Antigravity** | OAuth | `ccs agy` | Alternative routing |
 | **OpenRouter** | API Key | `ccs openrouter` | 300+ models, unified API |
+| **Ollama** | Local | `ccs ollama` | Local open-source models, privacy |
+| **Ollama Cloud** | API Key | `ccs ollama-cloud` | Cloud-hosted open-source models |
 | **GLM** | API Key | `ccs glm` | Cost-optimized execution |
 | **Kimi** | API Key | `ccs kimi` | Long-context, thinking mode |
 | **Azure Foundry** | API Key | `ccs foundry` | Claude via Microsoft Azure |
-| **Minimax** | API Key | `ccs minimax` | M2 series, 1M context |
+| **Minimax** | API Key | `ccs mm` | M2 series, 1M context |
 | **DeepSeek** | API Key | `ccs deepseek` | V3.2 and R1 reasoning |
 | **Qwen** | API Key | `ccs qwen` | Alibaba Cloud, qwen3-coder |
 
 **OpenRouter Integration** (v7.0.0): CCS v7.0.0 adds OpenRouter with interactive model picker, dynamic discovery, and tier mapping (opus/sonnet/haiku). Create via `ccs api create --preset openrouter` or dashboard.
+
+**Ollama Integration**: Run local open-source models (qwen3-coder, gpt-oss:20b) with full privacy. Use `ccs api create --preset ollama` - requires [Ollama v0.14.0+](https://ollama.com) installed. For cloud models, use `ccs api create --preset ollama-cloud`.
 
 **Azure Foundry**: Use `ccs api create --preset foundry` to set up Claude via Microsoft Azure AI Foundry. Requires Azure resource and API key from [ai.azure.com](https://ai.azure.com).
 
@@ -129,6 +135,7 @@ ccs codex     # OpenAI Codex (OAuth)
 ccs kiro      # Kiro/AWS CodeWhisperer (OAuth)
 ccs ghcp      # GitHub Copilot (OAuth device flow)
 ccs agy       # Antigravity (OAuth)
+ccs ollama    # Local Ollama (no API key needed)
 ccs glm       # GLM (API key)
 ```
 
@@ -143,7 +150,10 @@ ccs work "design the authentication system"
 # Terminal 2: Execution (GLM - cost optimized)
 ccs glm "implement the user service from the plan"
 
-# Terminal 3: Review (Gemini)
+# Terminal 3: Local testing (Ollama - offline, privacy)
+ccs ollama "run tests and generate coverage report"
+
+# Terminal 4: Review (Gemini)
 ccs gemini "review the implementation for security issues"
 ```
 

@@ -10,8 +10,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
 import { DeltaAccumulator } from './delta-accumulator';
+import { getCcsDir } from '../utils/config-manager';
 import {
   RequestTransformer,
   StreamParser,
@@ -48,7 +48,7 @@ export class GlmtTransformer {
 
     const debugEnabled = process.env.CCS_DEBUG === '1';
     this.debugLog = config.debugLog ?? debugEnabled;
-    this.debugLogDir = config.debugLogDir || path.join(os.homedir(), '.ccs', 'logs');
+    this.debugLogDir = config.debugLogDir || path.join(getCcsDir(), 'logs');
 
     // Initialize pipeline components
     this.requestTransformer = new RequestTransformer({
@@ -113,7 +113,7 @@ export class GlmtTransformer {
         type: 'message',
         role: 'assistant',
         content,
-        model: openaiResponse.model || 'glm-4.6',
+        model: openaiResponse.model || 'glm-4.7',
         stop_reason: this.responseBuilder.mapStopReason(choice.finish_reason || 'stop'),
         usage: {
           input_tokens: openaiResponse.usage?.prompt_tokens || 0,
@@ -131,7 +131,7 @@ export class GlmtTransformer {
         type: 'message',
         role: 'assistant',
         content: [{ type: 'text', text: '[Transformation Error] ' + err.message }],
-        model: 'glm-4.6',
+        model: 'glm-4.7',
         stop_reason: 'end_turn',
         usage: { input_tokens: 0, output_tokens: 0 },
       };

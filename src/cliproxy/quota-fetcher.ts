@@ -11,6 +11,7 @@ import { getAuthDir } from './config-generator';
 import { CLIProxyProvider } from './types';
 import {
   getProviderAccounts,
+  getPausedDir,
   setAccountTier,
   type AccountInfo,
   type AccountTier,
@@ -179,8 +180,11 @@ function isTokenExpired(expiredStr?: string): boolean {
  * This allows CCS to get fresh tokens independently of CLIProxyAPI
  */
 async function refreshAccessToken(
-  refreshToken: string
+  refreshToken: string,
+  verbose = false
 ): Promise<{ accessToken: string | null; error?: string }> {
+  if (verbose) console.error('[i] Refreshing access token...');
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -201,26 +205,36 @@ async function refreshAccessToken(
 
     clearTimeout(timeoutId);
 
+    if (verbose) console.error(`[i] Token refresh status: ${response.status}`);
+
     const data = (await response.json()) as TokenRefreshResponse;
 
     if (!response.ok || data.error) {
+      const error = data.error_description || data.error || `OAuth error: ${response.status}`;
+      if (verbose) console.error(`[!] Token refresh failed: ${error}`);
       return {
         accessToken: null,
-        error: data.error_description || data.error || `OAuth error: ${response.status}`,
+        error,
       };
     }
 
     if (!data.access_token) {
+      if (verbose) console.error('[!] Token refresh failed: No access_token in response');
       return { accessToken: null, error: 'No access_token in response' };
     }
 
+    if (verbose) console.error('[i] Token refresh: success');
     return { accessToken: data.access_token };
   } catch (err) {
     clearTimeout(timeoutId);
-    if (err instanceof Error && err.name === 'AbortError') {
-      return { accessToken: null, error: 'Token refresh timeout' };
-    }
-    return { accessToken: null, error: err instanceof Error ? err.message : 'Unknown error' };
+    const errorMsg =
+      err instanceof Error && err.name === 'AbortError'
+        ? 'Token refresh timeout'
+        : err instanceof Error
+          ? err.message
+          : 'Unknown error';
+    if (verbose) console.error(`[!] Token refresh failed: ${errorMsg}`);
+    return { accessToken: null, error: errorMsg };
   }
 }
 
@@ -228,57 +242,58 @@ async function refreshAccessToken(
  * Read auth data from auth file (access token, project_id, expiry status)
  */
 function readAuthData(provider: CLIProxyProvider, accountId: string): AuthData | null {
-  const authDir = getAuthDir();
-
-  // Check if auth directory exists
-  if (!fs.existsSync(authDir)) {
-    return null;
-  }
+  // Check both active and paused auth directories (quota needed for paused accounts too)
+  const authDirs = [getAuthDir(), getPausedDir()];
 
   // Sanitize accountId (email) to match auth file naming: @ and . → _
   const sanitizedId = sanitizeEmail(accountId);
   const prefix = provider === 'agy' ? 'antigravity-' : `${provider}-`;
   const expectedFile = `${prefix}${sanitizedId}.json`;
-  const filePath = path.join(authDir, expectedFile);
 
-  // Direct file access (most common case)
-  if (fs.existsSync(filePath)) {
-    try {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const data = JSON.parse(content) as AntigravityAuthFile;
-      if (!data.access_token) return null;
-      return {
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token || null,
-        projectId: data.project_id || null,
-        isExpired: isTokenExpired(data.expired),
-        expiresAt: data.expired || null,
-      };
-    } catch {
-      return null;
-    }
-  }
+  for (const authDir of authDirs) {
+    if (!fs.existsSync(authDir)) continue;
 
-  // Fallback: scan directory for matching email in file content
-  const files = fs.readdirSync(authDir);
-  for (const file of files) {
-    if (file.startsWith(prefix) && file.endsWith('.json')) {
-      const candidatePath = path.join(authDir, file);
+    const filePath = path.join(authDir, expectedFile);
+
+    // Direct file access (most common case)
+    if (fs.existsSync(filePath)) {
       try {
-        const content = fs.readFileSync(candidatePath, 'utf-8');
+        const content = fs.readFileSync(filePath, 'utf-8');
         const data = JSON.parse(content) as AntigravityAuthFile;
-        // Match by email field inside the auth file
-        if (data.email === accountId && data.access_token) {
-          return {
-            accessToken: data.access_token,
-            refreshToken: data.refresh_token || null,
-            projectId: data.project_id || null,
-            isExpired: isTokenExpired(data.expired),
-            expiresAt: data.expired || null,
-          };
-        }
+        if (!data.access_token) continue;
+        return {
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token || null,
+          projectId: data.project_id || null,
+          isExpired: isTokenExpired(data.expired),
+          expiresAt: data.expired || null,
+        };
       } catch {
         continue;
+      }
+    }
+
+    // Fallback: scan directory for matching email in file content
+    const files = fs.readdirSync(authDir);
+    for (const file of files) {
+      if (file.startsWith(prefix) && file.endsWith('.json')) {
+        const candidatePath = path.join(authDir, file);
+        try {
+          const content = fs.readFileSync(candidatePath, 'utf-8');
+          const data = JSON.parse(content) as AntigravityAuthFile;
+          // Match by email field inside the auth file
+          if (data.email === accountId && data.access_token) {
+            return {
+              accessToken: data.access_token,
+              refreshToken: data.refresh_token || null,
+              projectId: data.project_id || null,
+              isExpired: isTokenExpired(data.expired),
+              expiresAt: data.expired || null,
+            };
+          }
+        } catch {
+          continue;
+        }
       }
     }
   }
@@ -479,14 +494,21 @@ async function fetchAvailableModels(accessToken: string, _projectId: string): Pr
         const remaining =
           quotaInfo.remainingFraction ?? quotaInfo.remaining_fraction ?? quotaInfo.remaining;
 
-        // Skip invalid values (NaN, Infinity, non-numbers)
-        if (typeof remaining !== 'number' || !isFinite(remaining)) continue;
-
-        // Convert to percentage (0-100) and clamp to valid range
-        const percentage = Math.max(0, Math.min(100, Math.round(remaining * 100)));
-
         // Extract reset time
         const resetTime = quotaInfo.resetTime || quotaInfo.reset_time || null;
+
+        // If remaining is not a valid number but resetTime exists, treat as exhausted (0%)
+        // This happens when Claude models hit quota limit - API returns resetTime but no fraction
+        let percentage: number;
+        if (typeof remaining === 'number' && isFinite(remaining)) {
+          percentage = Math.max(0, Math.min(100, Math.round(remaining * 100)));
+        } else if (resetTime) {
+          // Model is exhausted but has reset time - show as 0%
+          percentage = 0;
+        } else {
+          // No valid data, skip this model
+          continue;
+        }
 
         models.push({
           name: modelId,
@@ -518,30 +540,38 @@ async function fetchAvailableModels(accessToken: string, _projectId: string): Pr
  *
  * @param provider - Provider name (only 'agy' supported)
  * @param accountId - Account identifier (email)
+ * @param verbose - Show detailed diagnostics
  * @returns Quota result with models and percentages
  */
 export async function fetchAccountQuota(
   provider: CLIProxyProvider,
-  accountId: string
+  accountId: string,
+  verbose = false
 ): Promise<QuotaResult> {
+  if (verbose) console.error(`[i] Fetching quota for ${accountId}...`);
+
   // Only Antigravity supports quota fetching
   if (provider !== 'agy') {
+    const error = `Quota not supported for provider: ${provider}`;
+    if (verbose) console.error(`[!] Error: ${error}`);
     return {
       success: false,
       models: [],
       lastUpdated: Date.now(),
-      error: `Quota not supported for provider: ${provider}`,
+      error,
     };
   }
 
-  // Read auth data from auth file
+  // Read auth data from auth file (checks both active and paused directories)
   const authData = readAuthData(provider, accountId);
   if (!authData) {
+    const error = 'Auth file not found for account';
+    if (verbose) console.error(`[!] Error: ${error}`);
     return {
       success: false,
       models: [],
       lastUpdated: Date.now(),
-      error: 'Auth file not found for account',
+      error,
     };
   }
 
@@ -550,6 +580,7 @@ export async function fetchAccountQuota(
   // Proactive refresh: refresh 5 minutes before expiry (matches CLIProxyAPIPlus behavior)
   let accessToken = authData.accessToken;
   const REFRESH_LEAD_TIME_MS = 5 * 60 * 1000; // 5 minutes
+  let tokenRefreshed = false;
 
   if (authData.refreshToken) {
     const shouldRefresh =
@@ -558,12 +589,17 @@ export async function fetchAccountQuota(
       new Date(authData.expiresAt).getTime() - Date.now() < REFRESH_LEAD_TIME_MS; // Expiring soon
 
     if (shouldRefresh) {
-      const refreshResult = await refreshAccessToken(authData.refreshToken);
+      const refreshResult = await refreshAccessToken(authData.refreshToken, verbose);
       if (refreshResult.accessToken) {
         accessToken = refreshResult.accessToken;
+        tokenRefreshed = true;
       }
       // If refresh fails, fall back to existing token (might still work)
     }
+  }
+
+  if (verbose && !tokenRefreshed) {
+    console.error('[i] Token refresh: skipped');
   }
 
   // Get project ID and tier - prefer stored project ID, but always call API for tier
@@ -576,18 +612,20 @@ export async function fetchAccountQuota(
   if (!lastProjectResult.projectId && !projectId) {
     // If project ID fetch fails, it might be token issue - try refresh if we haven't
     if (authData.refreshToken && accessToken === authData.accessToken) {
-      const refreshResult = await refreshAccessToken(authData.refreshToken);
+      const refreshResult = await refreshAccessToken(authData.refreshToken, verbose);
       if (refreshResult.accessToken) {
         accessToken = refreshResult.accessToken;
         lastProjectResult = await getProjectId(accessToken);
       }
     }
     if (!lastProjectResult.projectId) {
+      const error = lastProjectResult.error || 'Failed to retrieve project ID';
+      if (verbose) console.error(`[!] Error: ${error}`);
       return {
         success: false,
         models: [],
         lastUpdated: Date.now(),
-        error: lastProjectResult.error || 'Failed to retrieve project ID',
+        error,
         isUnprovisioned: lastProjectResult.isUnprovisioned,
       };
     }
@@ -597,12 +635,16 @@ export async function fetchAccountQuota(
   projectId = lastProjectResult.projectId || projectId;
   apiTier = lastProjectResult.tier || 'unknown';
 
+  if (verbose) console.error(`[i] Project ID: ${projectId || 'not found'}`);
+
   // Fetch models with quota
   const result = await fetchAvailableModels(accessToken, projectId as string);
 
+  if (verbose) console.error(`[i] Models found: ${result.models.length}`);
+
   // If quota fetch fails with auth error and we haven't refreshed yet, try refresh
   if (!result.success && result.error?.includes('expired') && authData.refreshToken) {
-    const refreshResult = await refreshAccessToken(authData.refreshToken);
+    const refreshResult = await refreshAccessToken(authData.refreshToken, verbose);
     if (refreshResult.accessToken) {
       const retryResult = await fetchAvailableModels(
         refreshResult.accessToken,
@@ -617,6 +659,9 @@ export async function fetchAccountQuota(
         retryResult.tier = finalTier;
         retryResult.accountId = accountId;
         setAccountTier(provider, accountId, finalTier);
+        if (verbose && retryResult.error) {
+          console.log(`[!] Error: ${retryResult.error}`);
+        }
       }
       return retryResult;
     }
@@ -631,6 +676,10 @@ export async function fetchAccountQuota(
     result.tier = finalTier;
     result.accountId = accountId;
     setAccountTier(provider, accountId, finalTier);
+  }
+
+  if (verbose && result.error) {
+    console.log(`[!] Error: ${result.error}`);
   }
 
   return result;
@@ -668,10 +717,12 @@ export interface AllAccountsQuotaResult {
  * Also detects accounts sharing same GCP project (failover won't help)
  *
  * @param provider - Provider name (only 'agy' supported for quota)
+ * @param verbose - Show detailed diagnostics
  * @returns Results for all accounts with project grouping
  */
 export async function fetchAllProviderQuotas(
-  provider: CLIProxyProvider
+  provider: CLIProxyProvider,
+  verbose = false
 ): Promise<AllAccountsQuotaResult> {
   const accounts = getProviderAccounts(provider);
   const results: AllAccountsQuotaResult = {
@@ -687,7 +738,7 @@ export async function fetchAllProviderQuotas(
 
   // Fetch quota for each account in parallel
   const quotaPromises = accounts.map(async (account) => {
-    const quota = await fetchAccountQuota(provider, account.id);
+    const quota = await fetchAccountQuota(provider, account.id, verbose);
 
     // Read project ID from auth file if not in quota result
     let projectId = quota.projectId;
@@ -724,13 +775,15 @@ export async function fetchAllProviderQuotas(
  *
  * @param provider - Provider name
  * @param excludeAccountId - Account to exclude (current exhausted account)
+ * @param verbose - Show detailed diagnostics
  * @returns Account with available quota, or null if none available
  */
 export async function findAvailableAccount(
   provider: CLIProxyProvider,
-  excludeAccountId?: string
+  excludeAccountId?: string,
+  verbose = false
 ): Promise<{ account: AccountInfo; quota: QuotaResult } | null> {
-  const allQuotas = await fetchAllProviderQuotas(provider);
+  const allQuotas = await fetchAllProviderQuotas(provider, verbose);
 
   // Get excluded account's project ID to avoid switching to same-project accounts
   const excludedProjectId = allQuotas.accounts.find((a) => a.account.id === excludeAccountId)?.quota

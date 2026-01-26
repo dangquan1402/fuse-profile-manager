@@ -11,6 +11,7 @@ import {
   installWebSearchHook,
   displayWebSearchStatus,
   getWebSearchHookEnv,
+  ensureProfileHooks,
 } from './utils/websearch-manager';
 import { getGlobalEnvConfig } from './config/unified-config-loader';
 import { fail, info } from './utils/ui';
@@ -153,10 +154,12 @@ async function execClaudeWithProxy(
   }
 
   // 4. Spawn Claude CLI with proxy URL
+  // Use model from user's settings (not hardcoded) - fixes issue #358
+  const configuredModel = envData['ANTHROPIC_MODEL'] || 'glm-4.7';
   const envVars: NodeJS.ProcessEnv = {
     ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}`,
     ANTHROPIC_AUTH_TOKEN: apiKey,
-    ANTHROPIC_MODEL: 'glm-4.6',
+    ANTHROPIC_MODEL: configuredModel,
   };
 
   const isWindows = process.platform === 'win32';
@@ -340,8 +343,8 @@ async function main(): Promise<void> {
 
   // Special case: doctor command
   if (firstArg === 'doctor' || firstArg === '--doctor') {
-    const shouldFix = args.includes('--fix') || args.includes('-f');
-    await handleDoctorCommand(shouldFix);
+    const restArgs = args.slice(args.indexOf(firstArg) + 1);
+    await handleDoctorCommand(restArgs);
     return;
   }
 
@@ -444,6 +447,13 @@ async function main(): Promise<void> {
     process.exit(exitCode);
   }
 
+  // Special case: persist command (write profile env to ~/.claude/settings.json)
+  if (firstArg === 'persist') {
+    const { handlePersistCommand } = await import('./commands/persist-command');
+    await handlePersistCommand(args.slice(1));
+    return;
+  }
+
   // Special case: setup command (first-time wizard)
   if (firstArg === 'setup' || firstArg === '--setup') {
     const { handleSetupCommand } = await import('./commands/setup-command');
@@ -516,6 +526,9 @@ async function main(): Promise<void> {
 
     if (profileInfo.type === 'cliproxy') {
       // CLIPROXY FLOW: OAuth-based profiles (gemini, codex, agy, qwen) or user-defined variants
+      // Inject WebSearch hook into profile settings before launch
+      ensureProfileHooks(profileInfo.name);
+
       const provider = profileInfo.provider || (profileInfo.name as CLIProxyProvider);
       const customSettingsPath = profileInfo.settingsPath; // undefined for hardcoded profiles
       const variantPort = profileInfo.port; // variant-specific port for isolation
@@ -535,6 +548,9 @@ async function main(): Promise<void> {
       process.exit(exitCode);
     } else if (profileInfo.type === 'copilot') {
       // COPILOT FLOW: GitHub Copilot subscription via copilot-api proxy
+      // Inject WebSearch hook into profile settings before launch
+      ensureProfileHooks(profileInfo.name);
+
       const { executeCopilotProfile } = await import('./copilot');
       const copilotConfig = profileInfo.copilotConfig;
       if (!copilotConfig) {
@@ -546,6 +562,9 @@ async function main(): Promise<void> {
     } else if (profileInfo.type === 'settings') {
       // Settings-based profiles (glm, glmt, kimi) are third-party providers
       // WebSearch is server-side tool - third-party providers have no access
+      // Inject WebSearch hook into profile settings before launch
+      ensureProfileHooks(profileInfo.name);
+
       ensureMcpWebSearch();
       installWebSearchHook();
 

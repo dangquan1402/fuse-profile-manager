@@ -24,13 +24,19 @@ import {
   HelpCircle,
   Pause,
   Play,
+  AlertCircle,
+  AlertTriangle,
+  FolderCode,
+  Check,
 } from 'lucide-react';
 import {
   cn,
-  sortModelsByPriority,
   formatResetTime,
-  getEarliestResetTime,
+  getClaudeResetTime,
   getMinClaudeQuota,
+  getModelsWithTiers,
+  groupModelsByTier,
+  type ModelTier,
 } from '@/lib/utils';
 import { PRIVACY_BLUR_CLASS } from '@/contexts/privacy-context';
 import { useAccountQuota, useCliproxyStats } from '@/hooks/use-cliproxy-stats';
@@ -40,8 +46,9 @@ import type { AccountItemProps } from './types';
  * Get color class based on quota percentage
  */
 function getQuotaColor(percentage: number): string {
-  if (percentage <= 20) return 'bg-destructive';
-  if (percentage <= 50) return 'bg-yellow-500';
+  const clamped = Math.max(0, Math.min(100, percentage));
+  if (clamped <= 20) return 'bg-destructive';
+  if (clamped <= 50) return 'bg-yellow-500';
   return 'bg-green-500';
 }
 
@@ -93,15 +100,18 @@ export function AccountItem({
   isPausingAccount,
   privacyMode,
   showQuota,
+  selectable,
+  selected,
+  onSelectChange,
 }: AccountItemProps) {
   // Fetch runtime stats to get actual lastUsedAt (more accurate than file state)
-  const { data: stats } = useCliproxyStats(showQuota && account.provider === 'agy');
+  const { data: stats } = useCliproxyStats(showQuota);
 
-  // Fetch quota for 'agy' provider accounts
+  // Fetch quota for all provider accounts
   const { data: quota, isLoading: quotaLoading } = useAccountQuota(
     account.provider,
     account.id,
-    showQuota && account.provider === 'agy'
+    showQuota
   );
 
   // Get last used time from runtime stats (more accurate than file)
@@ -113,17 +123,62 @@ export function AccountItem({
 
   // Get earliest reset time
   const nextReset =
-    quota?.success && quota.models.length > 0 ? getEarliestResetTime(quota.models) : null;
+    quota?.success && quota.models.length > 0 ? getClaudeResetTime(quota.models) : null;
 
   return (
     <div
       className={cn(
         'flex flex-col gap-2 p-3 rounded-lg border transition-colors',
-        account.isDefault ? 'border-primary/30 bg-primary/5' : 'border-border hover:bg-muted/30'
+        account.isDefault ? 'border-primary/30 bg-primary/5' : 'border-border hover:bg-muted/30',
+        account.paused && 'opacity-75',
+        selected && 'ring-2 ring-primary/50 bg-primary/5'
       )}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
+          {/* Selection checkbox for bulk actions */}
+          {selectable && (
+            <button
+              type="button"
+              onClick={() => onSelectChange?.(!selected)}
+              className={cn(
+                'flex items-center justify-center w-5 h-5 rounded border-2 transition-colors shrink-0',
+                selected
+                  ? 'bg-primary border-primary text-primary-foreground'
+                  : 'border-muted-foreground/30 hover:border-primary/50'
+              )}
+              aria-label={selected ? 'Deselect account' : 'Select account'}
+            >
+              {selected && <Check className="w-3 h-3" />}
+            </button>
+          )}
+          {/* Pause/Resume toggle button - visible left of avatar */}
+          {onPauseToggle && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => onPauseToggle(!account.paused)}
+                    disabled={isPausingAccount}
+                  >
+                    {isPausingAccount ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : account.paused ? (
+                      <Play className="w-4 h-4 text-emerald-500" />
+                    ) : (
+                      <Pause className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {account.paused ? 'Resume account' : 'Pause account'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           <div
             className={cn(
               'flex items-center justify-center w-8 h-8 rounded-full',
@@ -165,6 +220,54 @@ export function AccountItem({
                 </Badge>
               )}
             </div>
+            {/* Project ID for Antigravity accounts - read-only */}
+            {account.provider === 'agy' && (
+              <div className="flex items-center gap-1.5 mt-1">
+                {account.projectId ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <FolderCode className="w-3 h-3" aria-hidden="true" />
+                          <span
+                            className={cn(
+                              'font-mono max-w-[180px] truncate',
+                              privacyMode && PRIVACY_BLUR_CLASS
+                            )}
+                            title={account.projectId}
+                          >
+                            {account.projectId}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p className="text-xs">GCP Project ID (read-only)</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-500">
+                          <AlertTriangle className="w-3 h-3" aria-label="Warning" />
+                          <span>Project ID: N/A</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-[250px]">
+                        <div className="text-xs space-y-1">
+                          <p className="font-medium text-amber-600">Missing Project ID</p>
+                          <p>
+                            This may cause errors. Remove the account and re-add it to fetch the
+                            project ID.
+                          </p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+            )}
             {account.lastUsedAt && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                 <Clock className="w-3 h-3" />
@@ -187,24 +290,6 @@ export function AccountItem({
                 Set as default
               </DropdownMenuItem>
             )}
-            {onPauseToggle && (
-              <DropdownMenuItem
-                onClick={() => onPauseToggle(!account.paused)}
-                disabled={isPausingAccount}
-              >
-                {account.paused ? (
-                  <>
-                    <Play className="w-4 h-4 mr-2" />
-                    {isPausingAccount ? 'Resuming...' : 'Resume account'}
-                  </>
-                ) : (
-                  <>
-                    <Pause className="w-4 h-4 mr-2" />
-                    {isPausingAccount ? 'Pausing...' : 'Pause account'}
-                  </>
-                )}
-              </DropdownMenuItem>
-            )}
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={onRemove}
@@ -217,8 +302,8 @@ export function AccountItem({
         </DropdownMenu>
       </div>
 
-      {/* Quota bar - only for 'agy' provider */}
-      {showQuota && account.provider === 'agy' && (
+      {/* Quota bar - supports all providers with quota API */}
+      {showQuota && (
         <div className="pl-11">
           {quotaLoading ? (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -256,7 +341,7 @@ export function AccountItem({
                   <TooltipTrigger asChild>
                     <div className="flex items-center gap-2">
                       <Progress
-                        value={minQuota}
+                        value={Math.max(0, Math.min(100, minQuota))}
                         className="h-2 flex-1"
                         indicatorClassName={getQuotaColor(minQuota)}
                       />
@@ -266,14 +351,35 @@ export function AccountItem({
                   <TooltipContent side="bottom" className="max-w-xs">
                     <div className="text-xs space-y-1">
                       <p className="font-medium">Model Quotas:</p>
-                      {sortModelsByPriority(quota?.models || []).map((m) => (
-                        <div key={m.name} className="flex justify-between gap-4">
-                          <span className="truncate">{m.displayName || m.name}</span>
-                          <span className="font-mono">{m.percentage}%</span>
-                        </div>
-                      ))}
+                      {(() => {
+                        const tiered = getModelsWithTiers(quota?.models || []);
+                        const groups = groupModelsByTier(tiered);
+                        const tierOrder: ModelTier[] = ['primary', 'gemini-3', 'gemini-2', 'other'];
+                        return tierOrder.map((tier, idx) => {
+                          const models = groups.get(tier);
+                          if (!models || models.length === 0) return null;
+                          const isFirst = tierOrder
+                            .slice(0, idx)
+                            .every((t) => !groups.get(t)?.length);
+                          return (
+                            <div key={tier}>
+                              {!isFirst && <div className="border-t border-border/40 my-1" />}
+                              {models.map((m) => (
+                                <div key={m.name} className="flex justify-between gap-4">
+                                  <span className={cn('truncate', m.exhausted && 'text-red-500')}>
+                                    {m.displayName}
+                                  </span>
+                                  <span className={cn('font-mono', m.exhausted && 'text-red-500')}>
+                                    {m.percentage}%
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        });
+                      })()}
                       {nextReset && (
-                        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
+                        <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
                           <Clock className="w-3 h-3 text-blue-400" />
                           <span className="text-blue-400 font-medium">
                             Resets {formatResetTime(nextReset)}
@@ -285,8 +391,25 @@ export function AccountItem({
                 </Tooltip>
               </TooltipProvider>
             </div>
-          ) : quota?.error ? (
-            <div className="text-xs text-muted-foreground">{quota.error}</div>
+          ) : quota?.error || (quota && !quota.success) ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1.5">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] h-5 px-2 gap-1 border-muted-foreground/50 text-muted-foreground"
+                    >
+                      <AlertCircle className="w-3 h-3" />
+                      N/A
+                    </Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="text-xs">{quota?.error || 'Quota information unavailable'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ) : null}
         </div>
       )}

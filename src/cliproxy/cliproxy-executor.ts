@@ -27,14 +27,17 @@ import {
   CLIPROXY_DEFAULT_PORT,
   getCliproxyWritablePath,
   validatePort,
+  applyThinkingConfig,
 } from './config-generator';
 import { checkRemoteProxy } from './remote-proxy-client';
 import { isAuthenticated } from './auth-handler';
-import { CLIProxyProvider, ExecutorConfig } from './types';
+import { CLIProxyProvider, CLIProxyBackend, PLUS_ONLY_PROVIDERS, ExecutorConfig } from './types';
+import { DEFAULT_BACKEND } from './platform-detector';
 import { configureProviderModel, getCurrentModel } from './model-config';
 import { resolveProxyConfig, PROXY_CLI_FLAGS } from './proxy-config-resolver';
 import { getWebSearchHookEnv } from '../utils/websearch-manager';
 import { supportsModelConfig, isModelBroken, getModelIssueUrl, findModel } from './model-catalog';
+import { CodexReasoningProxy } from './codex-reasoning-proxy';
 import {
   findAccountByQuery,
   getProviderAccounts,
@@ -59,6 +62,7 @@ import { detectRunningProxy, waitForProxyHealthy, reclaimOrphanedProxy } from '.
 import { withStartupLock } from './startup-lock';
 import { loadOrCreateUnifiedConfig } from '../config/unified-config-loader';
 import { preflightCheck } from './quota-manager';
+import { HttpsTunnelProxy } from './https-tunnel-proxy';
 
 /** Default executor configuration */
 const DEFAULT_CONFIG: ExecutorConfig = {
@@ -139,6 +143,20 @@ export async function execClaudeWithCLIProxy(
   // 0. Resolve proxy configuration (CLI > ENV > config.yaml > defaults)
   // This filters proxy flags from args and returns resolved config
   const unifiedConfig = loadOrCreateUnifiedConfig();
+
+  // 0a. Runtime backend/provider validation - block kiro/ghcp if backend=original
+  const backend: CLIProxyBackend = unifiedConfig.cliproxy?.backend ?? DEFAULT_BACKEND;
+  if (backend === 'original' && PLUS_ONLY_PROVIDERS.includes(provider)) {
+    console.error('');
+    console.error(fail(`${provider} requires CLIProxyAPIPlus backend`));
+    console.error('');
+    console.error('To use this provider, either:');
+    console.error('  1. Set `cliproxy.backend: plus` in ~/.ccs/config.yaml');
+    console.error('  2. Use --backend=plus flag: ccs ' + provider + ' --backend=plus');
+    console.error('');
+    throw new Error(`Provider ${provider} requires Plus backend`);
+  }
+
   const cliproxyServerConfig = unifiedConfig.cliproxy_server;
   const { config: proxyConfig, remainingArgs: argsWithoutProxy } = resolveProxyConfig(args, {
     remote: cliproxyServerConfig?.remote
@@ -308,6 +326,64 @@ export async function execClaudeWithCLIProxy(
     !argsWithoutProxy[nicknameIdx + 1].startsWith('-')
   ) {
     setNickname = argsWithoutProxy[nicknameIdx + 1];
+  }
+
+  // Parse --thinking <value> flag for thinking budget control
+  // Supports: level names (low, medium, high, xhigh, auto), numeric budget, or 'off'/'none'
+  // Accepts both --thinking=value and --thinking value formats
+  let thinkingOverride: string | number | undefined;
+
+  // Check for --thinking=value format first
+  const thinkingEqArg = argsWithoutProxy.find((arg) => arg.startsWith('--thinking='));
+  if (thinkingEqArg) {
+    const val = thinkingEqArg.substring('--thinking='.length);
+    // Handle empty value after equals (--thinking=)
+    if (!val || val.trim() === '') {
+      console.error(fail('--thinking requires a value'));
+      console.error('    Examples: --thinking=low, --thinking=8192, --thinking=off');
+      console.error('    Levels: minimal, low, medium, high, xhigh, auto');
+      process.exit(1);
+    }
+    // Parse as number if numeric, otherwise keep as string (level name)
+    const numVal = parseInt(val, 10);
+    thinkingOverride = !isNaN(numVal) ? numVal : val;
+
+    // W2: Warn if multiple --thinking flags found (check both formats)
+    const allThinkingFlags = argsWithoutProxy.filter(
+      (arg) => arg === '--thinking' || arg.startsWith('--thinking=')
+    );
+    if (allThinkingFlags.length > 1) {
+      console.warn(
+        `[!] Multiple --thinking flags detected. Using first occurrence: ${thinkingEqArg}`
+      );
+    }
+  } else {
+    // Fall back to --thinking value format
+    const thinkingIdx = argsWithoutProxy.indexOf('--thinking');
+    if (thinkingIdx !== -1) {
+      const nextArg = argsWithoutProxy[thinkingIdx + 1];
+      // U1: Check if --thinking has a value (not missing or another flag)
+      if (!nextArg || nextArg.startsWith('-')) {
+        console.error(fail('--thinking requires a value'));
+        console.error('    Examples: --thinking low, --thinking 8192, --thinking off');
+        console.error('    Levels: minimal, low, medium, high, xhigh, auto');
+        process.exit(1);
+      }
+      const val = nextArg;
+      // Parse as number if numeric, otherwise keep as string (level name)
+      const numVal = parseInt(val, 10);
+      thinkingOverride = !isNaN(numVal) ? numVal : val;
+
+      // W2: Warn if multiple --thinking flags found (check both formats)
+      const allThinkingFlags = argsWithoutProxy.filter(
+        (arg) => arg === '--thinking' || arg.startsWith('--thinking=')
+      );
+      if (allThinkingFlags.length > 1) {
+        console.warn(
+          `[!] Multiple --thinking flags detected. Using first occurrence: --thinking ${val}`
+        );
+      }
+    }
   }
 
   // Handle --accounts: list accounts and exit
@@ -484,8 +560,10 @@ export async function execClaudeWithCLIProxy(
     if (preflight.switchedFrom) {
       console.log(info(`Auto-switched to ${preflight.accountId}`));
       console.log(`    Reason: ${preflight.reason}`);
-      if (preflight.quotaPercent !== undefined) {
+      if (preflight.quotaPercent !== undefined && preflight.quotaPercent !== null) {
         console.log(`    New account quota: ${preflight.quotaPercent.toFixed(1)}%`);
+      } else {
+        console.log(`    New account quota: N/A (fetch unavailable)`);
       }
     }
   }
@@ -646,12 +724,13 @@ export async function execClaudeWithCLIProxy(
         await waitForProxyReady(cfg.port, cfg.timeout, cfg.pollInterval);
         readySpinner.succeed(`CLIProxy ready on port ${cfg.port}`);
       } catch (error) {
-        readySpinner.fail('CLIProxy Plus startup failed');
+        const backendLabel = backend === 'plus' ? 'CLIProxy Plus' : 'CLIProxy';
+        readySpinner.fail(`${backendLabel} startup failed`);
         proxy.kill('SIGTERM');
 
         const err = error as Error;
         console.error('');
-        console.error(fail('CLIProxy Plus failed to start'));
+        console.error(fail(`${backendLabel} failed to start`));
         console.error('');
         console.error('Possible causes:');
         console.error(`  1. Port ${cfg.port} already in use`);
@@ -668,9 +747,9 @@ export async function execClaudeWithCLIProxy(
         throw new Error(`CLIProxy startup failed: ${err.message}`);
       }
 
-      // Register this session with the new proxy, including the installed version
+      // Register this session with the new proxy, including version and backend
       const installedVersion = getInstalledCliproxyVersion();
-      sessionId = registerSession(cfg.port, proxy.pid as number, installedVersion);
+      sessionId = registerSession(cfg.port, proxy.pid as number, installedVersion, backend);
       log(
         `Registered session ${sessionId} with new proxy (PID ${proxy.pid}, version ${installedVersion})`
       );
@@ -690,33 +769,137 @@ export async function execClaudeWithCLIProxy(
         }
       : undefined;
 
+  // For HTTPS remote, we need a local HTTP tunnel since Claude Code doesn't support
+  // HTTPS in ANTHROPIC_BASE_URL directly (undici limitation)
+  let httpsTunnel: HttpsTunnelProxy | null = null;
+  let tunnelPort: number | null = null;
+
+  if (useRemoteProxy && proxyConfig.protocol === 'https' && proxyConfig.host) {
+    try {
+      httpsTunnel = new HttpsTunnelProxy({
+        remoteHost: proxyConfig.host,
+        remotePort: proxyConfig.port,
+        authToken: proxyConfig.authToken,
+        verbose,
+        allowSelfSigned: proxyConfig.allowSelfSigned ?? false,
+      });
+      tunnelPort = await httpsTunnel.start();
+      log(
+        `HTTPS tunnel started on port ${tunnelPort} → https://${proxyConfig.host}:${proxyConfig.port}`
+      );
+    } catch (error) {
+      const err = error as Error;
+      console.error(warn(`Failed to start HTTPS tunnel: ${err.message}`));
+      throw new Error(`HTTPS tunnel startup failed: ${err.message}`);
+    }
+  }
+
+  // Build env vars - use tunnel port for HTTPS remote, direct URL otherwise
   const envVars = useRemoteProxy
-    ? getRemoteEnvVars(
-        provider,
-        {
-          host: proxyConfig.host ?? 'localhost',
-          port: proxyConfig.port,
-          protocol: proxyConfig.protocol,
-          authToken: proxyConfig.authToken,
-        },
-        cfg.customSettingsPath
-      )
+    ? httpsTunnel && tunnelPort
+      ? // HTTPS remote via local tunnel - use HTTP to tunnel
+        getRemoteEnvVars(
+          provider,
+          {
+            host: '127.0.0.1',
+            port: tunnelPort,
+            protocol: 'http', // Tunnel speaks HTTP locally
+            authToken: proxyConfig.authToken,
+          },
+          cfg.customSettingsPath
+        )
+      : // HTTP remote - direct connection
+        getRemoteEnvVars(
+          provider,
+          {
+            host: proxyConfig.host ?? 'localhost',
+            port: proxyConfig.port,
+            protocol: proxyConfig.protocol,
+            authToken: proxyConfig.authToken,
+          },
+          cfg.customSettingsPath
+        )
     : getEffectiveEnvVars(provider, cfg.port, cfg.customSettingsPath, remoteRewriteConfig);
+
+  // Apply thinking configuration to model (auto tier-based or manual override)
+  // This adds thinking suffix like model(high) or model(8192) for CLIProxyAPIPlus
+  applyThinkingConfig(envVars, provider, thinkingOverride);
+
+  // Codex-only: inject OpenAI reasoning effort based on tier model mapping.
+  // Maps by request.model:
+  // - OPUS/default model → xhigh
+  // - SONNET model → high
+  // - HAIKU model → medium
+  // - Unknown → medium
+  let codexReasoningProxy: CodexReasoningProxy | null = null;
+  let codexReasoningPort: number | null = null;
+  if (provider === 'codex') {
+    if (!envVars.ANTHROPIC_BASE_URL) {
+      log('ANTHROPIC_BASE_URL not set for Codex, reasoning proxy disabled');
+    } else {
+      try {
+        const traceEnabled =
+          process.env.CCS_CODEX_REASONING_TRACE === '1' ||
+          process.env.CCS_CODEX_REASONING_TRACE === 'true';
+        // For remote proxy mode, strip /api/provider/codex prefix from paths
+        // because remote CLIProxyAPI uses root paths (/v1/messages), not provider-prefixed
+        const stripPathPrefix = useRemoteProxy ? '/api/provider/codex' : undefined;
+        codexReasoningProxy = new CodexReasoningProxy({
+          upstreamBaseUrl: envVars.ANTHROPIC_BASE_URL,
+          verbose,
+          defaultEffort: 'medium',
+          traceFilePath: traceEnabled
+            ? `${process.env.HOME || process.cwd()}/.ccs/codex-reasoning-proxy.log`
+            : '',
+          modelMap: {
+            defaultModel: envVars.ANTHROPIC_MODEL,
+            opusModel: envVars.ANTHROPIC_DEFAULT_OPUS_MODEL,
+            sonnetModel: envVars.ANTHROPIC_DEFAULT_SONNET_MODEL,
+            haikuModel: envVars.ANTHROPIC_DEFAULT_HAIKU_MODEL,
+          },
+          stripPathPrefix,
+        });
+        codexReasoningPort = await codexReasoningProxy.start();
+        log(
+          `Codex reasoning proxy active: http://127.0.0.1:${codexReasoningPort}/api/provider/codex`
+        );
+      } catch (error) {
+        const err = error as Error;
+        codexReasoningProxy = null;
+        codexReasoningPort = null;
+        if (verbose) {
+          console.error(warn(`Codex reasoning proxy disabled: ${err.message}`));
+        }
+      }
+    }
+  }
+
+  const effectiveEnvVars =
+    codexReasoningProxy && codexReasoningPort
+      ? {
+          ...envVars,
+          ANTHROPIC_BASE_URL: `http://127.0.0.1:${codexReasoningPort}/api/provider/codex`,
+        }
+      : envVars;
   const webSearchEnv = getWebSearchHookEnv();
   const env = {
     ...process.env,
-    ...envVars,
+    ...effectiveEnvVars,
     ...webSearchEnv,
     CCS_PROFILE_TYPE: 'cliproxy', // Signal to WebSearch hook this is a third-party provider
   };
 
-  log(`Claude env: ANTHROPIC_BASE_URL=${envVars.ANTHROPIC_BASE_URL}`);
-  log(`Claude env: ANTHROPIC_MODEL=${envVars.ANTHROPIC_MODEL}`);
+  log(`Claude env: ANTHROPIC_BASE_URL=${effectiveEnvVars.ANTHROPIC_BASE_URL}`);
+  log(`Claude env: ANTHROPIC_MODEL=${effectiveEnvVars.ANTHROPIC_MODEL}`);
   if (Object.keys(webSearchEnv).length > 0) {
     log(`Claude env: WebSearch config=${JSON.stringify(webSearchEnv)}`);
   }
   // Log global env vars for visibility
-  if (envVars.DISABLE_TELEMETRY || envVars.DISABLE_ERROR_REPORTING || envVars.DISABLE_BUG_COMMAND) {
+  if (
+    effectiveEnvVars.DISABLE_TELEMETRY ||
+    effectiveEnvVars.DISABLE_ERROR_REPORTING ||
+    effectiveEnvVars.DISABLE_BUG_COMMAND
+  ) {
     log(`Claude env: Global env applied (telemetry/reporting disabled)`);
   }
 
@@ -731,6 +914,7 @@ export async function execClaudeWithCLIProxy(
     '--accounts',
     '--use',
     '--nickname',
+    '--thinking',
     '--incognito',
     '--no-incognito',
     '--import',
@@ -740,8 +924,14 @@ export async function execClaudeWithCLIProxy(
   const claudeArgs = argsWithoutProxy.filter((arg, idx) => {
     // Filter out CCS flags
     if (ccsFlags.includes(arg)) return false;
-    // Filter out value after --use or --nickname
-    if (argsWithoutProxy[idx - 1] === '--use' || argsWithoutProxy[idx - 1] === '--nickname')
+    // Filter out --thinking=value format
+    if (arg.startsWith('--thinking=')) return false;
+    // Filter out value after --use, --nickname, or --thinking
+    if (
+      argsWithoutProxy[idx - 1] === '--use' ||
+      argsWithoutProxy[idx - 1] === '--nickname' ||
+      argsWithoutProxy[idx - 1] === '--thinking'
+    )
       return false;
     return true;
   });
@@ -773,6 +963,14 @@ export async function execClaudeWithCLIProxy(
   claude.on('exit', (code, signal) => {
     log(`Claude exited: code=${code}, signal=${signal}`);
 
+    if (codexReasoningProxy) {
+      codexReasoningProxy.stop();
+    }
+
+    if (httpsTunnel) {
+      httpsTunnel.stop();
+    }
+
     // Unregister this session (proxy keeps running for persistence) - only for local mode
     if (sessionId) {
       unregisterSession(sessionId, sessionPort);
@@ -789,6 +987,14 @@ export async function execClaudeWithCLIProxy(
   claude.on('error', (error) => {
     console.error(fail(`Claude CLI error: ${error}`));
 
+    if (codexReasoningProxy) {
+      codexReasoningProxy.stop();
+    }
+
+    if (httpsTunnel) {
+      httpsTunnel.stop();
+    }
+
     // Unregister session, proxy keeps running (local mode only)
     if (sessionId) {
       unregisterSession(sessionId, sessionPort);
@@ -799,6 +1005,14 @@ export async function execClaudeWithCLIProxy(
   // Handle parent process termination (SIGTERM, SIGINT)
   const cleanup = () => {
     log('Parent signal received, cleaning up');
+
+    if (codexReasoningProxy) {
+      codexReasoningProxy.stop();
+    }
+
+    if (httpsTunnel) {
+      httpsTunnel.stop();
+    }
 
     // Unregister session, proxy keeps running (local mode only)
     if (sessionId) {

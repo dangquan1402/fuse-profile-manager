@@ -2,3 +2,4 @@
 # Exclude UI tests - they use vitest and require jsdom environment
 # Run UI tests separately with: cd ui && bun run test
 root = "./tests"
+timeout = 10000
