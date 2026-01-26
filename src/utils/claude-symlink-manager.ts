@@ -280,8 +280,9 @@ export class ClaudeSymlinkManager {
   /**
    * Uninstall CCS items from ~/.claude/ (remove symlinks or copied files)
    * Safe: only removes items that are CCS symlinks or valid copies
+   * @returns number of items removed
    */
-  uninstall(): void {
+  uninstall(): number {
     let removed = 0;
 
     for (const item of this.ccsItems) {
@@ -316,6 +317,8 @@ export class ClaudeSymlinkManager {
     } else {
       console.log(info('No delegation commands or skills to remove'));
     }
+
+    return removed;
   }
 
   /**

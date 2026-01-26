@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ok, fail, warn, info } from './ui';
-import { getCcsDir } from './config-manager';
+import { getCcsDir, getCcsHome } from './config-manager';
 
 // Ora fallback type for when ora is not available
 interface OraSpinner {
@@ -60,7 +60,7 @@ export class ClaudeDirInstaller {
   private ccsClaudeDir: string;
 
   constructor() {
-    this.homeDir = getCcsDir().replace(/\.ccs$/, ''); // Get home dir from CCS dir
+    this.homeDir = getCcsHome();
     this.ccsClaudeDir = path.join(getCcsDir(), '.claude');
   }
 

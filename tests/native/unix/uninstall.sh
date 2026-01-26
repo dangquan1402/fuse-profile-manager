@@ -118,6 +118,8 @@ test_case "Empty uninstall: Reports 0 items removed" "Zero removed count" bash -
 # ============================================================================
 
 # Install first so we can test uninstall
+# NOTE: --install is currently a no-op (under development), but we call it
+# to test the install/uninstall cycle works without errors
 echo ""
 echo -e "${YELLOW}Setting up for install/uninstall cycle test...${NC}"
 bash -c "HOME='$TEST_HOME' '$CCS_PATH' --install > /dev/null 2>&1"

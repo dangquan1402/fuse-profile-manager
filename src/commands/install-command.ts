@@ -44,8 +44,10 @@ export async function handleUninstallCommand(): Promise<void> {
 
   // 2. Remove symlinks from ~/.claude/
   const symlinkManager = new ClaudeSymlinkManager();
-  symlinkManager.uninstall();
-  removed++;
+  const symlinksRemoved = symlinkManager.uninstall();
+  if (symlinksRemoved > 0) {
+    removed++;
+  }
 
   // 3. Summary
   console.log('');

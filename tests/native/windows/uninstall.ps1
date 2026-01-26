@@ -191,6 +191,8 @@ Test-Case "Empty uninstall: Reports 0 items removed" "Zero removed count" {
 # ============================================================================
 
 # Install first so we can test uninstall
+# NOTE: --install is currently a no-op (under development), but we call it
+# to test the install/uninstall cycle works without errors
 Write-Host ""
 Write-ColorOutput "Setting up for install/uninstall cycle test..." "Yellow"
 $originalHome = $env:HOME
