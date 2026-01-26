@@ -1,3 +1,10 @@
+## [7.28.1](https://github.com/kaitranntt/ccs/compare/v7.28.0...v7.28.1) (2026-01-26)
+
+### Bug Fixes
+
+* **cliproxy:** pin version to 6.7.25, add disable-cooling ([fb77d72](https://github.com/kaitranntt/ccs/commit/fb77d72a3080d0fa096247c71a9cc1336445aa38))
+* **websearch:** stop polluting global ~/.claude/settings.json with hooks ([0216341](https://github.com/kaitranntt/ccs/commit/0216341b2c45e0b0387947f30213d277e1893584))
+
 ## [7.28.0](https://github.com/kaitranntt/ccs/compare/v7.27.0...v7.28.0) (2026-01-26)
 
 ### Features
