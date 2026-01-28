@@ -225,7 +225,7 @@ export async function findHealthyAccount(
 
       return {
         id: account.id,
-        tier: account.tier || 'pro',
+        tier: account.tier || 'unknown',
         lastQuota: avgQuota,
       };
     })

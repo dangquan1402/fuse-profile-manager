@@ -323,7 +323,7 @@ function mapTierString(tierStr: string | undefined): AccountTier {
 
 /**
  * Get project ID and tier via loadCodeAssist endpoint
- * Uses allowedTiers array with isDefault=true (CLIProxyAPIPlus approach)
+ * Uses paidTier.id for accurate tier detection (g1-ultra-tier, g1-pro-tier)
  */
 async function getProjectId(accessToken: string): Promise<{
   projectId: string | null;
