@@ -1,7 +1,33 @@
 /**
  * Provider Configuration
- * Shared constants for provider branding and assets
+ * Shared constants for CLIProxy providers - SINGLE SOURCE OF TRUTH for UI
+ *
+ * When adding a new provider, update CLIPROXY_PROVIDERS array and related mappings.
  */
+
+/**
+ * Canonical list of CLIProxy provider IDs
+ * This is the UI's single source of truth for valid providers.
+ * Must stay in sync with backend's CLIPROXY_PROFILES in src/auth/profile-detector.ts
+ */
+export const CLIPROXY_PROVIDERS = [
+  'gemini',
+  'codex',
+  'agy',
+  'qwen',
+  'iflow',
+  'kiro',
+  'ghcp',
+  'claude',
+] as const;
+
+/** Union type for CLIProxy provider IDs */
+export type CLIProxyProvider = (typeof CLIPROXY_PROVIDERS)[number];
+
+/** Check if a string is a valid CLIProxy provider */
+export function isValidProvider(provider: string): provider is CLIProxyProvider {
+  return CLIPROXY_PROVIDERS.includes(provider as CLIProxyProvider);
+}
 
 // Map provider names to asset filenames (only providers with actual logos)
 export const PROVIDER_ASSETS: Record<string, string> = {
