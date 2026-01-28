@@ -132,7 +132,7 @@ export interface CLIProxyConfig {
   auth?: CLIProxyAuthConfig;
   /** Background token refresh worker settings */
   token_refresh?: TokenRefreshSettings;
-  /** Auto-sync API profiles to local CLIProxy config on settings change (default: false) */
+  /** Auto-sync API profiles to local CLIProxy config on settings change (default: true) */
   auto_sync?: boolean;
 }
 

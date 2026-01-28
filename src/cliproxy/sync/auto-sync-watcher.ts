@@ -130,6 +130,7 @@ export function startAutoSyncWatcher(): void {
 
   watcherInstance.on('change', onFileChange);
   watcherInstance.on('add', onFileChange);
+  watcherInstance.on('unlink', onFileChange);
 
   watcherInstance.on('error', (error) => {
     log(`Watcher error: ${error.message}`);

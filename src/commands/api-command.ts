@@ -277,8 +277,13 @@ async function handleCreate(args: string[]): Promise<void> {
     process.exit(1);
   }
 
-  // Trigger sync to local CLIProxy config (best-effort, ignore result)
-  syncToLocalConfig();
+  // Trigger sync to local CLIProxy config (best-effort)
+  try {
+    syncToLocalConfig();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.log(`[i] Auto-sync to CLIProxy config skipped: ${message}`);
+  }
 
   // Display success
   console.log('');
