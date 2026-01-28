@@ -1,3 +1,45 @@
+## [7.30.0](https://github.com/kaitranntt/ccs/compare/v7.29.0...v7.30.0) (2026-01-28)
+
+### Features
+
+* **cliproxy:** add auto_sync config option ([fc23afd](https://github.com/kaitranntt/ccs/commit/fc23afdfc78a955fc0a1ce7f55d2e2bd098fc6c4))
+* **cliproxy:** add granular account tier prioritization (ultra/pro/free) ([aeb9abc](https://github.com/kaitranntt/ccs/commit/aeb9abc998a5114007e34c478cf5c79213ea1fe7)), closes [#387](https://github.com/kaitranntt/ccs/issues/387)
+* **cliproxy:** add local config sync module ([9de2682](https://github.com/kaitranntt/ccs/commit/9de26820629f5e95a487028a64c1a8a782674448))
+* **cliproxy:** add Management API client for CLIProxy ([4cc89ea](https://github.com/kaitranntt/ccs/commit/4cc89eaf8745d67548f032408cd284fd23c3bd5e))
+* **cliproxy:** add sync and alias CLI commands ([cb6c212](https://github.com/kaitranntt/ccs/commit/cb6c21216dcaf0536530f110af75dc20ee7c7738))
+* **cliproxy:** add sync API routes ([56500fe](https://github.com/kaitranntt/ccs/commit/56500fee98042fb333bd723818d2a3881cd28481))
+* **cliproxy:** auto-sync on profile create ([b2ba402](https://github.com/kaitranntt/ccs/commit/b2ba402d0fb4204457ae1f09016cb21bd9b5a6e2))
+* **cliproxy:** enable auto_sync by default ([28b0e89](https://github.com/kaitranntt/ccs/commit/28b0e89b34787f42d63e2dd1a036b75a761bcf6b))
+* **ui:** add CLIProxy sync components ([75a4e68](https://github.com/kaitranntt/ccs/commit/75a4e68f95ba5f8c7c8b647b8d5cf0d013dc425a))
+* **ui:** add granular account tier types (pro/ultra/free) ([890fd14](https://github.com/kaitranntt/ccs/commit/890fd140f2ede728f212ed0bfc77bc8609b3a09b))
+* **ui:** add tier badges to account cards ([31a91f6](https://github.com/kaitranntt/ccs/commit/31a91f609fad4af17f0e4bd3b0f0dbabe8bf2b77))
+* **ui:** add toast feedback for sync actions ([f972a4e](https://github.com/kaitranntt/ccs/commit/f972a4ee80ebdec7b0a645d29eba4d65ca847caf))
+* **ui:** allow custom model names in Quick Setup wizard ([ab9bbed](https://github.com/kaitranntt/ccs/commit/ab9bbedfa92555d0502b064145c0cfd5bf24065c))
+* **ui:** mount SyncStatusCard to CLIProxy page ([afa3bda](https://github.com/kaitranntt/ccs/commit/afa3bdafceb1829e0fef2994bcb51c731797657f))
+
+### Bug Fixes
+
+* **cliproxy:** address edge cases in sync module ([9924b2f](https://github.com/kaitranntt/ccs/commit/9924b2fb25650803c34d26eae151c53a007fa0bb))
+* **cliproxy:** address PR review feedback ([4967693](https://github.com/kaitranntt/ccs/commit/496769383979fb0b08bb03a57acd4ad2c10221c6))
+* **cliproxy:** address sync review feedback ([e80d2d2](https://github.com/kaitranntt/ccs/commit/e80d2d2d05c00522cdaac03e6f55ecf10a938fc7))
+* **cliproxy:** correct sync terminology and add unit tests ([c3f85bc](https://github.com/kaitranntt/ccs/commit/c3f85bc4a8c1351b09d463bd1687e17fa8a989d5))
+* **cliproxy:** harden sync against edge cases ([bbad73b](https://github.com/kaitranntt/ccs/commit/bbad73b55450d04902b90a4fc4c006a8c7a3c5c1))
+* **cliproxy:** improve sync robustness and consistency ([4124780](https://github.com/kaitranntt/ccs/commit/4124780ce07201f166971216fd48e5b072ec9dd5))
+* **cliproxy:** preserve config comments during sync ([68a63a7](https://github.com/kaitranntt/ccs/commit/68a63a776812c7026a38f7dc7d5bb6996bc30190))
+* **cliproxy:** use paidTier for account tier detection instead of allowedTiers ([de23029](https://github.com/kaitranntt/ccs/commit/de23029b572c9e1db1c8a004ec214ce5a465570a))
+* **ui:** add scroll boundary for account list in Quick Setup ([85aa747](https://github.com/kaitranntt/ccs/commit/85aa747aebccbde21111730f6eb63e047ac0b91d))
+* **ui:** fix account card layout overflow ([87cced8](https://github.com/kaitranntt/ccs/commit/87cced81952c168eaa4c6fd98059f089d765bcb3))
+* **ui:** update sync card for local sync design ([e2b9c46](https://github.com/kaitranntt/ccs/commit/e2b9c465e4485c13086b82d282d9c67ae640dc77))
+
+### Code Refactoring
+
+* **cliproxy:** remove model alias functionality ([32dbd5e](https://github.com/kaitranntt/ccs/commit/32dbd5e174338d7627637667c63162ea4b9ffe7f))
+* **ui:** merge sync into ProxyStatusWidget ([3761634](https://github.com/kaitranntt/ccs/commit/37616348f8e0edf934e68854faf6c783d4ff7aca))
+
+### Tests
+
+* **cliproxy:** add management-api-client unit tests ([6611142](https://github.com/kaitranntt/ccs/commit/6611142dcc60180dbaa4b987c3fb801ce753ffb1))
+
 ## [7.29.0](https://github.com/kaitranntt/ccs/compare/v7.28.2...v7.29.0) (2026-01-28)
 
 ### Features
