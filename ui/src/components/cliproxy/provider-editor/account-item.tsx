@@ -315,7 +315,6 @@ export function AccountItem({
                         {w}
                       </SelectItem>
                     ))}
-                    <SelectItem value="custom">Custom...</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
