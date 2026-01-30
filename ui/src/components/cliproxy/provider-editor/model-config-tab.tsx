@@ -167,7 +167,7 @@ export function ModelConfigTab({
           isBulkPausing={isBulkPausing}
           isBulkResuming={isBulkResuming}
           privacyMode={privacyMode}
-          showQuota={provider === 'agy' && !isRemoteMode}
+          showQuota={['agy', 'codex', 'gemini'].includes(provider) && !isRemoteMode}
           isKiro={isKiro}
           kiroNoIncognito={kiroNoIncognito}
           onKiroNoIncognitoChange={saveKiroNoIncognito}

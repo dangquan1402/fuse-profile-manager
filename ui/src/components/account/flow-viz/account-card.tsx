@@ -9,11 +9,16 @@ import {
   getMinClaudeQuota,
   getModelsWithTiers,
   groupModelsByTier,
+  getMinCodexQuota,
+  getMinGeminiQuota,
+  getCodexResetTime,
+  getGeminiResetTime,
   type ModelTier,
 } from '@/lib/utils';
 import { PRIVACY_BLUR_CLASS } from '@/contexts/privacy-context';
 import { GripVertical, Loader2, Clock, Pause, Play } from 'lucide-react';
 import { useAccountQuota } from '@/hooks/use-cliproxy-stats';
+import type { CodexQuotaResult, GeminiCliQuotaResult, QuotaResult } from '@/lib/api-client';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 
@@ -89,19 +94,36 @@ export function AccountCard({
   const borderColor = getBorderColorStyle(zone, account.color);
   const connectorPosition = CONNECTOR_POSITION_MAP[zone];
 
-  // Quota for AGY accounts
-  const isAgy = account.provider === 'agy';
+  // Quota for CLIProxy accounts (agy, codex, gemini)
+  const isCliproxyProvider = ['agy', 'codex', 'gemini'].includes(account.provider);
   const { data: quota, isLoading: quotaLoading } = useAccountQuota(
     account.provider,
     account.id,
-    isAgy
+    isCliproxyProvider
   );
-  // Show minimum quota of Claude models (primary), fallback to min of all models
-  const minQuota = quota?.success ? getMinClaudeQuota(quota.models) : null;
+
+  // Get provider-specific minimum quota
+  const getProviderMinQuota = () => {
+    if (!quota?.success) return null;
+    switch (account.provider) {
+      case 'agy':
+        return getMinClaudeQuota((quota as QuotaResult).models);
+      case 'codex':
+        return getMinCodexQuota((quota as CodexQuotaResult).windows);
+      case 'gemini':
+        return getMinGeminiQuota((quota as GeminiCliQuotaResult).buckets);
+      default:
+        return null;
+    }
+  };
+  const minQuota = getProviderMinQuota();
 
   // Tier badge (AGY only) - show P for Pro, U for Ultra
   const showTierBadge =
-    isAgy && account.tier && account.tier !== 'unknown' && account.tier !== 'free';
+    account.provider === 'agy' &&
+    account.tier &&
+    account.tier !== 'unknown' &&
+    account.tier !== 'free';
 
   return (
     <div
@@ -198,8 +220,8 @@ export function AccountCard({
         failure={account.failureCount}
         showDetails={showDetails}
       />
-      {/* Quota bar for AGY accounts */}
-      {isAgy && (
+      {/* Quota bar for CLIProxy accounts (agy, codex, gemini) */}
+      {isCliproxyProvider && (
         <div className="mt-2 px-0.5">
           {quotaLoading ? (
             <div className="flex items-center gap-1 text-[8px] text-muted-foreground">
@@ -244,47 +266,99 @@ export function AccountCard({
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs">
-                  <div className="text-xs space-y-1">
-                    <p className="font-medium">Model Quotas:</p>
-                    {(() => {
-                      const tiered = getModelsWithTiers(quota?.models || []);
-                      const groups = groupModelsByTier(tiered);
-                      const tierOrder: ModelTier[] = ['primary', 'gemini-3', 'gemini-2', 'other'];
-                      return tierOrder.map((tier, idx) => {
-                        const models = groups.get(tier);
-                        if (!models || models.length === 0) return null;
-                        const isFirst = tierOrder
-                          .slice(0, idx)
-                          .every((t) => !groups.get(t)?.length);
-                        return (
-                          <div key={tier}>
-                            {!isFirst && <div className="border-t border-border/40 my-1" />}
-                            {models.map((m) => (
-                              <div key={m.name} className="flex justify-between gap-4">
-                                <span className={cn('truncate', m.exhausted && 'text-red-500')}>
-                                  {m.displayName}
-                                </span>
-                                <span className={cn('font-mono', m.exhausted && 'text-red-500')}>
-                                  {m.percentage}%
-                                </span>
-                              </div>
-                            ))}
+                  {account.provider === 'agy' ? (
+                    <div className="text-xs space-y-1">
+                      <p className="font-medium">Model Quotas:</p>
+                      {(() => {
+                        const tiered = getModelsWithTiers((quota as QuotaResult)?.models || []);
+                        const groups = groupModelsByTier(tiered);
+                        const tierOrder: ModelTier[] = ['primary', 'gemini-3', 'gemini-2', 'other'];
+                        return tierOrder.map((tier, idx) => {
+                          const models = groups.get(tier);
+                          if (!models || models.length === 0) return null;
+                          const isFirst = tierOrder
+                            .slice(0, idx)
+                            .every((t) => !groups.get(t)?.length);
+                          return (
+                            <div key={tier}>
+                              {!isFirst && <div className="border-t border-border/40 my-1" />}
+                              {models.map((m) => (
+                                <div key={m.name} className="flex justify-between gap-4">
+                                  <span className={cn('truncate', m.exhausted && 'text-red-500')}>
+                                    {m.displayName}
+                                  </span>
+                                  <span className={cn('font-mono', m.exhausted && 'text-red-500')}>
+                                    {m.percentage}%
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        });
+                      })()}
+                      {(() => {
+                        const resetTime = getClaudeResetTime((quota as QuotaResult)?.models || []);
+                        return resetTime ? (
+                          <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
+                            <Clock className="w-3 h-3 text-blue-400" />
+                            <span className="text-blue-400 font-medium">
+                              Resets {formatResetTime(resetTime)}
+                            </span>
                           </div>
-                        );
-                      });
-                    })()}
-                    {(() => {
-                      const resetTime = getClaudeResetTime(quota?.models || []);
-                      return resetTime ? (
-                        <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
-                          <Clock className="w-3 h-3 text-blue-400" />
-                          <span className="text-blue-400 font-medium">
-                            Resets {formatResetTime(resetTime)}
+                        ) : null;
+                      })()}
+                    </div>
+                  ) : account.provider === 'codex' ? (
+                    <div className="text-xs space-y-1">
+                      <p className="font-medium">Rate Limits:</p>
+                      {(quota as CodexQuotaResult)?.windows?.map((w) => (
+                        <div key={w.label} className="flex justify-between gap-4">
+                          <span className={cn(w.remainingPercent < 20 && 'text-red-500')}>
+                            {w.label}
                           </span>
+                          <span className="font-mono">{w.remainingPercent}%</span>
                         </div>
-                      ) : null;
-                    })()}
-                  </div>
+                      ))}
+                      {(() => {
+                        const resetTime = getCodexResetTime(
+                          (quota as CodexQuotaResult)?.windows || []
+                        );
+                        return resetTime ? (
+                          <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
+                            <Clock className="w-3 h-3 text-blue-400" />
+                            <span className="text-blue-400 font-medium">
+                              Resets {formatResetTime(resetTime)}
+                            </span>
+                          </div>
+                        ) : null;
+                      })()}
+                    </div>
+                  ) : account.provider === 'gemini' ? (
+                    <div className="text-xs space-y-1">
+                      <p className="font-medium">Buckets:</p>
+                      {(quota as GeminiCliQuotaResult)?.buckets?.map((b) => (
+                        <div key={b.id} className="flex justify-between gap-4">
+                          <span className={cn(b.remainingPercent < 20 && 'text-red-500')}>
+                            {b.label}
+                          </span>
+                          <span className="font-mono">{b.remainingPercent}%</span>
+                        </div>
+                      ))}
+                      {(() => {
+                        const resetTime = getGeminiResetTime(
+                          (quota as GeminiCliQuotaResult)?.buckets || []
+                        );
+                        return resetTime ? (
+                          <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
+                            <Clock className="w-3 h-3 text-blue-400" />
+                            <span className="text-blue-400 font-medium">
+                              Resets {formatResetTime(resetTime)}
+                            </span>
+                          </div>
+                        ) : null;
+                      })()}
+                    </div>
+                  ) : null}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
