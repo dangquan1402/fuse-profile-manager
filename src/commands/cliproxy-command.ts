@@ -26,6 +26,9 @@ import {
   pauseAccount,
   resumeAccount,
   findAccountByQuery,
+  setAccountWeight,
+  setTierDefaultWeights,
+  AccountTier,
 } from '../cliproxy/account-manager';
 import { fetchAllProviderQuotas } from '../cliproxy/quota-fetcher';
 import { fetchAllCodexQuotas } from '../cliproxy/quota-fetcher-codex';
@@ -69,6 +72,9 @@ import {
 
 // Import sync handler
 import { handleSync } from './cliproxy-sync-handler';
+
+// Import weighted round-robin sync
+import { syncWeightedAuthFiles } from '../cliproxy/weighted-round-robin-sync';
 
 // ============================================================================
 // ARGUMENT PARSING
@@ -703,6 +709,15 @@ async function showHelp(): Promise<void> {
       ],
     ],
     [
+      'Weight Management:',
+      [
+        ['weight', 'Show current weights for all accounts'],
+        ['weight <account> <w>', 'Set weight for account (0-99)'],
+        ['weight --tier <t> <w>', 'Set weight for all accounts of tier'],
+        ['weight sync', 'Regenerate auth files with current weights'],
+      ],
+    ],
+    [
       'Proxy Lifecycle:',
       [
         ['status', 'Show running CLIProxy status'],
@@ -1200,6 +1215,294 @@ function formatResetTimeISO(isoTime: string): string {
 }
 
 // ============================================================================
+// WEIGHT MANAGEMENT COMMANDS
+// ============================================================================
+
+/**
+ * Show weight help text
+ */
+function showWeightHelp(): void {
+  console.log(`
+Usage: ccs cliproxy weight [command] [options]
+
+Commands:
+  (none)              Show current weights for all accounts
+  <account> <weight>  Set weight for account (0-99)
+  sync                Regenerate auth files with current weights
+  --tier <t> <w>      Set weight for all accounts of tier
+
+Options:
+  --help, -h          Show this help
+
+Examples:
+  ccs cliproxy weight                    # List all weights
+  ccs cliproxy weight trankai365 4       # Set weight to 4
+  ccs cliproxy weight --tier ultra 4     # All ultra accounts = 4
+  ccs cliproxy weight sync               # Apply changes to auth files
+`);
+}
+
+/**
+ * Main weight command dispatcher
+ */
+async function handleWeight(args: string[]): Promise<void> {
+  await initUI();
+
+  // Help
+  if (args.includes('--help') || args.includes('-h')) {
+    showWeightHelp();
+    return;
+  }
+
+  // Sync subcommand
+  if (args[0] === 'sync') {
+    await handleWeightSync();
+    return;
+  }
+
+  // Tier bulk set: --tier <tier> <weight>
+  const tierIdx = args.indexOf('--tier');
+  if (tierIdx !== -1) {
+    await handleTierWeight(args.slice(tierIdx + 1));
+    return;
+  }
+
+  // Individual set: <account> <weight>
+  if (args.length >= 2) {
+    await handleSetWeight(args);
+    return;
+  }
+
+  // Default: show status
+  await showWeightStatus();
+}
+
+/**
+ * Show weight status for all accounts
+ */
+async function showWeightStatus(): Promise<void> {
+  console.log(header('Account Weights'));
+  console.log('');
+
+  const providers: CLIProxyProvider[] = ['agy', 'gemini', 'codex'];
+  let hasAnyAccounts = false;
+
+  for (const provider of providers) {
+    const accounts = getProviderAccounts(provider);
+    if (accounts.length === 0) continue;
+
+    hasAnyAccounts = true;
+    console.log(
+      subheader(`${provider.charAt(0).toUpperCase() + provider.slice(1)} (${accounts.length})`)
+    );
+    console.log('');
+
+    const rows: string[][] = [];
+    for (const account of accounts) {
+      const weight = account.weight ?? 1;
+      const tier = account.tier || 'unknown';
+      const defaultMark = account.isDefault ? color('*', 'success') : ' ';
+      const pausedMark = account.paused ? color('[PAUSED]', 'warning') : '';
+
+      rows.push([
+        defaultMark,
+        account.nickname || account.email || account.id,
+        tier,
+        weight.toString(),
+        pausedMark,
+      ]);
+    }
+
+    console.log(
+      table(rows, {
+        head: ['', 'Account', 'Tier', 'Weight', 'Status'],
+        colWidths: [3, 30, 10, 8, 15],
+      })
+    );
+    console.log('');
+  }
+
+  if (!hasAnyAccounts) {
+    console.log(info('No accounts configured'));
+    console.log('');
+  }
+
+  console.log(dim('Weight controls how often an account appears in rotation (0-99)'));
+  console.log(dim('Use "ccs cliproxy weight <account> <weight>" to change'));
+  console.log('');
+}
+
+/**
+ * Set weight for individual account
+ */
+async function handleSetWeight(args: string[]): Promise<void> {
+  const accountQuery = args[0];
+  const weightStr = args[1];
+
+  if (!accountQuery || !weightStr) {
+    console.log(fail('Usage: ccs cliproxy weight <account> <weight>'));
+    console.log('');
+    console.log('Examples:');
+    console.log('  ccs cliproxy weight trankai365 4');
+    console.log('  ccs cliproxy weight ultra@gmail.com 10');
+    process.exit(1);
+  }
+
+  const weight = parseInt(weightStr, 10);
+  if (isNaN(weight) || weight < 0 || weight > 99) {
+    console.log(fail('Weight must be a number between 0 and 99'));
+    process.exit(1);
+  }
+
+  // Search all providers for the account
+  const providers: CLIProxyProvider[] = ['agy', 'gemini', 'codex'];
+  let foundAccount: { provider: CLIProxyProvider; accountId: string; email?: string } | null = null;
+
+  for (const provider of providers) {
+    const account = findAccountByQuery(provider, accountQuery);
+    if (account) {
+      foundAccount = { provider, accountId: account.id, email: account.email };
+      break;
+    }
+  }
+
+  if (!foundAccount) {
+    console.log(fail(`Account not found: ${accountQuery}`));
+    console.log('');
+    console.log('Available accounts:');
+    for (const provider of providers) {
+      const accounts = getProviderAccounts(provider);
+      if (accounts.length > 0) {
+        console.log(`  ${provider}:`);
+        for (const acc of accounts) {
+          console.log(`    - ${acc.nickname || acc.email || acc.id}`);
+        }
+      }
+    }
+    process.exit(1);
+  }
+
+  // Set weight
+  const success = setAccountWeight(foundAccount.provider, foundAccount.accountId, weight);
+  if (!success) {
+    console.log(fail('Failed to set weight'));
+    process.exit(1);
+  }
+
+  console.log(ok(`Weight set to ${weight} for ${foundAccount.email || foundAccount.accountId}`));
+  console.log(info(`Provider: ${foundAccount.provider}`));
+  console.log('');
+
+  // Auto-sync auth files
+  console.log(dim('Syncing auth files...'));
+  const syncResult = await syncWeightedAuthFiles(foundAccount.provider);
+  console.log(
+    ok(`Sync complete: ${syncResult.created.length} created, ${syncResult.removed.length} removed`)
+  );
+  console.log('');
+}
+
+/**
+ * Set weight for all accounts of a tier
+ */
+async function handleTierWeight(args: string[]): Promise<void> {
+  const tier = args[0] as AccountTier;
+  const weightStr = args[1];
+
+  if (!tier || !weightStr) {
+    console.log(fail('Usage: ccs cliproxy weight --tier <tier> <weight>'));
+    console.log('');
+    console.log('Tiers: free, pro, ultra, unknown');
+    console.log('');
+    console.log('Example: ccs cliproxy weight --tier ultra 4');
+    process.exit(1);
+  }
+
+  const validTiers: AccountTier[] = ['free', 'pro', 'ultra', 'unknown'];
+  if (!validTiers.includes(tier)) {
+    console.log(fail(`Invalid tier: ${tier}`));
+    console.log('Valid tiers: free, pro, ultra, unknown');
+    process.exit(1);
+  }
+
+  const weight = parseInt(weightStr, 10);
+  if (isNaN(weight) || weight < 0 || weight > 99) {
+    console.log(fail('Weight must be a number between 0 and 99'));
+    process.exit(1);
+  }
+
+  // Apply to all providers
+  const providers: CLIProxyProvider[] = ['agy', 'gemini', 'codex'];
+  let totalUpdated = 0;
+
+  for (const provider of providers) {
+    const count = setTierDefaultWeights(provider, { [tier]: weight });
+    totalUpdated += count;
+  }
+
+  if (totalUpdated === 0) {
+    console.log(warn(`No accounts found with tier: ${tier}`));
+    console.log('');
+    return;
+  }
+
+  console.log(ok(`Updated ${totalUpdated} account(s) with tier '${tier}' to weight ${weight}`));
+  console.log('');
+
+  // Auto-sync auth files for all providers
+  console.log(dim('Syncing auth files...'));
+  for (const provider of providers) {
+    const syncResult = await syncWeightedAuthFiles(provider);
+    if (syncResult.created.length > 0 || syncResult.removed.length > 0) {
+      console.log(
+        info(
+          `${provider}: ${syncResult.created.length} created, ${syncResult.removed.length} removed`
+        )
+      );
+    }
+  }
+  console.log('');
+}
+
+/**
+ * Regenerate auth files with current weights
+ */
+async function handleWeightSync(): Promise<void> {
+  console.log(header('Sync Weighted Auth Files'));
+  console.log('');
+
+  const providers: CLIProxyProvider[] = ['agy', 'gemini', 'codex'];
+  let hadChanges = false;
+
+  for (const provider of providers) {
+    const accounts = getProviderAccounts(provider);
+    if (accounts.length === 0) continue;
+
+    console.log(dim(`Syncing ${provider}...`));
+    const syncResult = await syncWeightedAuthFiles(provider);
+
+    if (syncResult.created.length > 0 || syncResult.removed.length > 0) {
+      console.log(
+        ok(
+          `${provider}: ${syncResult.created.length} created, ${syncResult.removed.length} removed, ${syncResult.unchanged} unchanged`
+        )
+      );
+      hadChanges = true;
+    } else {
+      console.log(info(`${provider}: No changes needed (${syncResult.unchanged} files)`));
+    }
+  }
+
+  console.log('');
+  if (hadChanges) {
+    console.log(ok('Auth files synced successfully'));
+  } else {
+    console.log(info('All auth files already up to date'));
+  }
+  console.log('');
+}
+
+// ============================================================================
 // MAIN ROUTER
 // ============================================================================
 
@@ -1270,6 +1573,11 @@ export async function handleCliproxyCommand(args: string[]): Promise<void> {
   if (command === 'quota') {
     const { provider: providerFilter } = parseProviderArg(remainingArgs.slice(1));
     await handleQuotaStatus(verbose, providerFilter);
+    return;
+  }
+
+  if (command === 'weight') {
+    await handleWeight(remainingArgs.slice(1));
     return;
   }
 
