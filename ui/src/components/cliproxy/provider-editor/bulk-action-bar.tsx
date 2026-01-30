@@ -4,7 +4,14 @@
  */
 
 import { Button } from '@/components/ui/button';
-import { Pause, Play, Loader2 } from 'lucide-react';
+import { Pause, Play, Loader2, Scale } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface BulkActionBarProps {
   selectedCount: number;
@@ -13,6 +20,8 @@ interface BulkActionBarProps {
   onClearSelection: () => void;
   isPausing: boolean;
   isResuming: boolean;
+  onSetAllUltraWeights?: (weight: number) => void;
+  isSettingWeights?: boolean;
 }
 
 export function BulkActionBar({
@@ -22,11 +31,13 @@ export function BulkActionBar({
   onClearSelection,
   isPausing,
   isResuming,
+  onSetAllUltraWeights,
+  isSettingWeights,
 }: BulkActionBarProps) {
   // Show bar when at least 1 account is selected (per validation decision)
   if (selectedCount < 1) return null;
 
-  const isLoading = isPausing || isResuming;
+  const isLoading = isPausing || isResuming || isSettingWeights;
 
   return (
     <div className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg border mt-2">
@@ -61,6 +72,28 @@ export function BulkActionBar({
           {isResuming ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
           Resume Selected
         </Button>
+        {onSetAllUltraWeights && (
+          <div className="flex items-center gap-1.5 pl-2 border-l">
+            <Scale className="w-3 h-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Ultra:</span>
+            <Select
+              defaultValue="4"
+              onValueChange={(val) => onSetAllUltraWeights(parseInt(val))}
+              disabled={isLoading}
+            >
+              <SelectTrigger className="h-7 w-14 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((w) => (
+                  <SelectItem key={w} value={w.toString()}>
+                    {w}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
     </div>
   );

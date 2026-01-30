@@ -39,6 +39,8 @@ export interface ProviderEditorProps {
   onBulkResume?: (accountIds: string[]) => void;
   /** Weight change handler */
   onWeightChange?: (accountId: string, weight: number) => void;
+  /** Set all Ultra account weights */
+  onSetAllUltraWeights?: (weight: number) => void;
   isRemovingAccount?: boolean;
   /** Pause/resume mutation in progress */
   isPausingAccount?: boolean;
@@ -50,6 +52,8 @@ export interface ProviderEditorProps {
   isBulkResuming?: boolean;
   /** Weight update mutation in progress */
   isUpdatingWeight?: boolean;
+  /** Set tier defaults mutation in progress */
+  isSettingWeights?: boolean;
 }
 
 export interface AccountItemProps {

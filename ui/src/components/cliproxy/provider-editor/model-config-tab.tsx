@@ -57,6 +57,10 @@ interface ModelConfigTabProps {
   onWeightChange?: (accountId: string, weight: number) => void;
   /** Weight update mutation in progress */
   isUpdatingWeight?: boolean;
+  /** Set all Ultra account weights */
+  onSetAllUltraWeights?: (weight: number) => void;
+  /** Set tier defaults mutation in progress */
+  isSettingWeights?: boolean;
   privacyMode?: boolean;
   /** True if connected to remote CLIProxy (quota not available) */
   isRemoteMode?: boolean;
@@ -85,12 +89,14 @@ export function ModelConfigTab({
   onBulkPause,
   onBulkResume,
   onWeightChange,
+  onSetAllUltraWeights,
   isRemovingAccount,
   isPausingAccount,
   isSoloingAccount,
   isBulkPausing,
   isBulkResuming,
   isUpdatingWeight,
+  isSettingWeights,
   privacyMode,
   isRemoteMode,
 }: ModelConfigTabProps) {
@@ -169,12 +175,14 @@ export function ModelConfigTab({
           onBulkPause={onBulkPause}
           onBulkResume={onBulkResume}
           onWeightChange={onWeightChange}
+          onSetAllUltraWeights={onSetAllUltraWeights}
           isRemovingAccount={isRemovingAccount}
           isPausingAccount={isPausingAccount}
           isSoloingAccount={isSoloingAccount}
           isBulkPausing={isBulkPausing}
           isBulkResuming={isBulkResuming}
           isUpdatingWeight={isUpdatingWeight}
+          isSettingWeights={isSettingWeights}
           privacyMode={privacyMode}
           showQuota={
             QUOTA_SUPPORTED_PROVIDERS.includes(provider as QuotaSupportedProvider) && !isRemoteMode

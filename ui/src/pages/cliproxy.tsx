@@ -29,7 +29,7 @@ import {
   useBulkResumeAccounts,
   useDeleteVariant,
 } from '@/hooks/use-cliproxy';
-import { useSetAccountWeight } from '@/hooks/use-accounts';
+import { useSetAccountWeight, useSetTierDefaults } from '@/hooks/use-accounts';
 import type { AuthStatus, Variant } from '@/lib/api-client';
 import { MODEL_CATALOGS } from '@/lib/model-catalogs';
 import { cn } from '@/lib/utils';
@@ -194,6 +194,7 @@ export function CliproxyPage() {
   const bulkResumeMutation = useBulkResumeAccounts();
   const deleteMutation = useDeleteVariant();
   const setWeightMutation = useSetAccountWeight();
+  const setTierDefaultsMutation = useSetTierDefaults();
 
   // Selection state: either a provider or a variant
   // Initialize from localStorage if available
@@ -274,6 +275,11 @@ export function CliproxyPage() {
   const handleBulkResume = (provider: string, accountIds: string[]) => {
     if (bulkResumeMutation.isPending) return;
     bulkResumeMutation.mutate({ provider, accountIds });
+  };
+
+  const handleSetAllUltraWeights = (weight: number) => {
+    if (setTierDefaultsMutation.isPending) return;
+    setTierDefaultsMutation.mutate({ ultra: weight });
   };
 
   const handleSelectProvider = (provider: string) => {
@@ -436,12 +442,14 @@ export function CliproxyPage() {
                 weight,
               })
             }
+            onSetAllUltraWeights={handleSetAllUltraWeights}
             isRemovingAccount={removeMutation.isPending}
             isPausingAccount={pauseMutation.isPending || resumeMutation.isPending}
             isSoloingAccount={soloMutation.isPending}
             isBulkPausing={bulkPauseMutation.isPending}
             isBulkResuming={bulkResumeMutation.isPending}
             isUpdatingWeight={setWeightMutation.isPending}
+            isSettingWeights={setTierDefaultsMutation.isPending}
           />
         ) : selectedStatus ? (
           <ProviderEditor
@@ -482,12 +490,14 @@ export function CliproxyPage() {
                 weight,
               })
             }
+            onSetAllUltraWeights={handleSetAllUltraWeights}
             isRemovingAccount={removeMutation.isPending}
             isPausingAccount={pauseMutation.isPending || resumeMutation.isPending}
             isSoloingAccount={soloMutation.isPending}
             isBulkPausing={bulkPauseMutation.isPending}
             isBulkResuming={bulkResumeMutation.isPending}
             isUpdatingWeight={setWeightMutation.isPending}
+            isSettingWeights={setTierDefaultsMutation.isPending}
           />
         ) : (
           <EmptyProviderState onSetup={() => setWizardOpen(true)} />

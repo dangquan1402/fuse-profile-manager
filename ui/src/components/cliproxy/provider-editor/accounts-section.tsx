@@ -27,6 +27,8 @@ interface AccountsSectionProps {
   onBulkResume?: (accountIds: string[]) => void;
   /** Weight change handler */
   onWeightChange?: (accountId: string, weight: number) => void;
+  /** Set all Ultra account weights */
+  onSetAllUltraWeights?: (weight: number) => void;
   isRemovingAccount?: boolean;
   /** Pause/resume mutation in progress */
   isPausingAccount?: boolean;
@@ -38,6 +40,8 @@ interface AccountsSectionProps {
   isBulkResuming?: boolean;
   /** Weight update mutation in progress */
   isUpdatingWeight?: boolean;
+  /** Set tier defaults mutation in progress */
+  isSettingWeights?: boolean;
   privacyMode?: boolean;
   /** Show quota bars for accounts (only applicable for 'agy' provider) */
   showQuota?: boolean;
@@ -58,12 +62,14 @@ export function AccountsSection({
   onBulkPause,
   onBulkResume,
   onWeightChange,
+  onSetAllUltraWeights,
   isRemovingAccount,
   isPausingAccount,
   isSoloingAccount,
   isBulkPausing,
   isBulkResuming,
   isUpdatingWeight,
+  isSettingWeights,
   privacyMode,
   showQuota,
   isKiro,
@@ -131,6 +137,17 @@ export function AccountsSection({
     }
   }, [onBulkResume, selectedIds]);
 
+  // Sort accounts by tier (Ultra first) and weight
+  const sortedAccounts = useMemo(() => {
+    return [...accounts].sort((a, b) => {
+      const tierOrder: Record<string, number> = { ultra: 0, pro: 1, free: 2, unknown: 3 };
+      const tierDiff =
+        (tierOrder[a.tier ?? 'unknown'] ?? 3) - (tierOrder[b.tier ?? 'unknown'] ?? 3);
+      if (tierDiff !== 0) return tierDiff;
+      return (b.weight ?? 1) - (a.weight ?? 1);
+    });
+  }, [accounts]);
+
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
@@ -168,12 +185,14 @@ export function AccountsSection({
           onClearSelection={deselectAll}
           isPausing={!!isBulkPausing}
           isResuming={!!isBulkResuming}
+          onSetAllUltraWeights={onSetAllUltraWeights}
+          isSettingWeights={isSettingWeights}
         />
       )}
 
       {accounts.length > 0 ? (
         <div className="space-y-2">
-          {accounts.map((account) => (
+          {sortedAccounts.map((account) => (
             <AccountItem
               key={account.id}
               account={account}

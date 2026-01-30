@@ -43,12 +43,14 @@ export function ProviderEditor({
   onBulkPause,
   onBulkResume,
   onWeightChange,
+  onSetAllUltraWeights,
   isRemovingAccount,
   isPausingAccount,
   isSoloingAccount,
   isBulkPausing,
   isBulkResuming,
   isUpdatingWeight,
+  isSettingWeights,
 }: ProviderEditorProps) {
   const [customPresetOpen, setCustomPresetOpen] = useState(false);
   const { privacyMode } = usePrivacy();
@@ -215,12 +217,14 @@ export function ProviderEditor({
                     onBulkPause={onBulkPause}
                     onBulkResume={onBulkResume}
                     onWeightChange={onWeightChange}
+                    onSetAllUltraWeights={onSetAllUltraWeights}
                     isRemovingAccount={isRemovingAccount}
                     isPausingAccount={isPausingAccount}
                     isSoloingAccount={isSoloingAccount}
                     isBulkPausing={isBulkPausing}
                     isBulkResuming={isBulkResuming}
                     isUpdatingWeight={isUpdatingWeight}
+                    isSettingWeights={isSettingWeights}
                     privacyMode={privacyMode}
                     isRemoteMode={isRemoteMode}
                   />

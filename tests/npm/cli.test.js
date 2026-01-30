@@ -17,16 +17,17 @@ describe('npm CLI', () => {
     const postinstallScript = path.join(__dirname, '..', '..', 'scripts', 'postinstall.js');
     execSync(`node "${postinstallScript}"`, {
       stdio: 'ignore',
-      env: { ...process.env, CCS_HOME: testCcsHome }
+      env: { ...process.env, CCS_HOME: testCcsHome },
+      timeout: 15000 // Allow 15 seconds for postinstall (CI can be slow)
     });
-  });
+  }, { timeout: 20000 }); // Allow 20 seconds for the entire beforeAll hook
 
   afterAll(() => {
     // Clean up test environment
     if (testEnv) {
       testEnv.cleanup();
     }
-  });
+  }, { timeout: 10000 }); // Allow 10 seconds for cleanup
 
   // Helper to run CLI with test environment
   function runCli(args, options = {}) {
