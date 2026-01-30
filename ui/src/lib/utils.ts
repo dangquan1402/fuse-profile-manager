@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import type { CodexQuotaWindow, GeminiCliBucket } from './api-client';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -297,4 +298,42 @@ export function groupModelsByTier(models: TieredModel[]): Map<ModelTier, TieredM
     groups.set(m.tier, existing);
   }
   return groups;
+}
+
+/**
+ * Get minimum remaining percentage across Codex rate limit windows
+ */
+export function getMinCodexQuota(windows: CodexQuotaWindow[]): number | null {
+  if (!windows || windows.length === 0) return null;
+  const percentages = windows.map((w) => w.remainingPercent);
+  return Math.min(...percentages);
+}
+
+/**
+ * Get earliest reset time from Codex windows
+ */
+export function getCodexResetTime(windows: CodexQuotaWindow[]): string | null {
+  if (!windows || windows.length === 0) return null;
+  const resets = windows.map((w) => w.resetAt).filter((t): t is string => t !== null);
+  if (resets.length === 0) return null;
+  return resets.sort()[0];
+}
+
+/**
+ * Get minimum remaining percentage across Gemini CLI buckets
+ */
+export function getMinGeminiQuota(buckets: GeminiCliBucket[]): number | null {
+  if (!buckets || buckets.length === 0) return null;
+  const percentages = buckets.map((b) => b.remainingPercent);
+  return Math.min(...percentages);
+}
+
+/**
+ * Get earliest reset time from Gemini buckets
+ */
+export function getGeminiResetTime(buckets: GeminiCliBucket[]): string | null {
+  if (!buckets || buckets.length === 0) return null;
+  const resets = buckets.map((b) => b.resetTime).filter((t): t is string => t !== null);
+  if (resets.length === 0) return null;
+  return resets.sort()[0];
 }

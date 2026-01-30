@@ -3,7 +3,12 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import type { ModelQuota, QuotaResult } from '@/lib/api-client';
+import type {
+  ModelQuota,
+  QuotaResult,
+  CodexQuotaResult,
+  GeminiCliQuotaResult,
+} from '@/lib/api-client';
 
 /** Per-account usage statistics */
 export interface AccountUsageStats {
@@ -196,10 +201,13 @@ export function useCliproxyErrorLogContent(name: string | null) {
 }
 
 // Re-export for consumers
-export type { ModelQuota, QuotaResult };
+export type { ModelQuota, QuotaResult, CodexQuotaResult, GeminiCliQuotaResult };
+
+/** Providers with quota API support */
+const SUPPORTED_PROVIDERS = ['agy', 'codex', 'gemini'] as const;
 
 /**
- * Fetch account quota from API
+ * Fetch account quota from API (Antigravity only)
  */
 async function fetchAccountQuota(provider: string, accountId: string): Promise<QuotaResult> {
   const response = await fetch(`/api/cliproxy/quota/${provider}/${encodeURIComponent(accountId)}`);
@@ -217,18 +225,109 @@ async function fetchAccountQuota(provider: string, accountId: string): Promise<Q
 }
 
 /**
+ * Fetch Codex quota from API
+ */
+async function fetchCodexQuotaApi(accountId: string): Promise<CodexQuotaResult> {
+  const response = await fetch(`/api/cliproxy/quota/codex/${encodeURIComponent(accountId)}`);
+  if (!response.ok) {
+    let message = 'Failed to fetch Codex quota';
+    try {
+      const error = await response.json();
+      message = error.message || message;
+    } catch {
+      // Use default message if response isn't JSON
+    }
+    throw new Error(message);
+  }
+  return response.json();
+}
+
+/**
+ * Fetch Gemini quota from API
+ */
+async function fetchGeminiQuotaApi(accountId: string): Promise<GeminiCliQuotaResult> {
+  const response = await fetch(`/api/cliproxy/quota/gemini/${encodeURIComponent(accountId)}`);
+  if (!response.ok) {
+    let message = 'Failed to fetch Gemini quota';
+    try {
+      const error = await response.json();
+      message = error.message || message;
+    } catch {
+      // Use default message if response isn't JSON
+    }
+    throw new Error(message);
+  }
+  return response.json();
+}
+
+/** Unified quota result type for all providers */
+export type UnifiedQuotaResult = QuotaResult | CodexQuotaResult | GeminiCliQuotaResult;
+
+/**
+ * Fetch quota by provider (dispatcher)
+ */
+async function fetchQuotaByProvider(
+  provider: string,
+  accountId: string
+): Promise<UnifiedQuotaResult> {
+  switch (provider) {
+    case 'codex':
+      return fetchCodexQuotaApi(accountId);
+    case 'gemini':
+      return fetchGeminiQuotaApi(accountId);
+    default:
+      return fetchAccountQuota(provider, accountId);
+  }
+}
+
+/**
  * Hook to get account quota
- * Supports all providers that have quota API implemented
+ * Supports agy, codex, and gemini providers
  */
 export function useAccountQuota(provider: string, accountId: string, enabled = true) {
   return useQuery({
     queryKey: ['account-quota', provider, accountId],
-    queryFn: () => fetchAccountQuota(provider, accountId),
-    enabled: enabled && provider === 'agy' && !!accountId,
+    queryFn: () => fetchQuotaByProvider(provider, accountId),
+    enabled:
+      enabled &&
+      SUPPORTED_PROVIDERS.includes(provider as (typeof SUPPORTED_PROVIDERS)[number]) &&
+      !!accountId,
     staleTime: 60000, // Match refetchInterval to prevent early refetching
     refetchInterval: 60000, // Refresh every 1 minute
     refetchOnWindowFocus: false, // Don't refetch on tab switch
     refetchOnMount: false, // Don't refetch on component remount (AuthMonitor re-renders)
     retry: 1,
+  });
+}
+
+/**
+ * Hook to get Codex quota for a specific account
+ */
+export function useCodexQuota(accountId: string | null) {
+  return useQuery({
+    queryKey: ['codex-quota', accountId],
+    queryFn: async () => {
+      if (!accountId) throw new Error('Account ID required');
+      return fetchCodexQuotaApi(accountId);
+    },
+    enabled: !!accountId,
+    staleTime: 30000,
+    refetchInterval: 60000,
+  });
+}
+
+/**
+ * Hook to get Gemini CLI quota for a specific account
+ */
+export function useGeminiQuota(accountId: string | null) {
+  return useQuery({
+    queryKey: ['gemini-quota', accountId],
+    queryFn: async () => {
+      if (!accountId) throw new Error('Account ID required');
+      return fetchGeminiQuotaApi(accountId);
+    },
+    enabled: !!accountId,
+    staleTime: 30000,
+    refetchInterval: 60000,
   });
 }
