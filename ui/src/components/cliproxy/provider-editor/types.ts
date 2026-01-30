@@ -37,6 +37,8 @@ export interface ProviderEditorProps {
   onBulkPause?: (accountIds: string[]) => void;
   /** Bulk resume multiple accounts */
   onBulkResume?: (accountIds: string[]) => void;
+  /** Weight change handler */
+  onWeightChange?: (accountId: string, weight: number) => void;
   isRemovingAccount?: boolean;
   /** Pause/resume mutation in progress */
   isPausingAccount?: boolean;
@@ -46,6 +48,8 @@ export interface ProviderEditorProps {
   isBulkPausing?: boolean;
   /** Bulk resume mutation in progress */
   isBulkResuming?: boolean;
+  /** Weight update mutation in progress */
+  isUpdatingWeight?: boolean;
 }
 
 export interface AccountItemProps {
@@ -55,11 +59,15 @@ export interface AccountItemProps {
   onPauseToggle?: (paused: boolean) => void;
   /** Solo mode: activate this account, pause all others */
   onSoloMode?: () => void;
+  /** Weight change handler */
+  onWeightChange?: (weight: number) => void;
   isRemoving?: boolean;
   /** Pause/resume mutation in progress */
   isPausingAccount?: boolean;
   /** Solo mode mutation in progress */
   isSoloingAccount?: boolean;
+  /** Weight update mutation in progress */
+  isUpdatingWeight?: boolean;
   privacyMode?: boolean;
   /** Show quota bar (only for 'agy' provider) */
   showQuota?: boolean;

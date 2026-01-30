@@ -12,6 +12,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   User,
@@ -29,6 +36,7 @@ import {
   FolderCode,
   Check,
   KeyRound,
+  Weight as WeightIcon,
 } from 'lucide-react';
 import { cn, getProviderMinQuota, getProviderResetTime } from '@/lib/utils';
 import { PRIVACY_BLUR_CLASS } from '@/contexts/privacy-context';
@@ -90,8 +98,10 @@ export function AccountItem({
   onSetDefault,
   onRemove,
   onPauseToggle,
+  onWeightChange,
   isRemoving,
   isPausingAccount,
+  isUpdatingWeight,
   privacyMode,
   showQuota,
   selectable,
@@ -270,6 +280,44 @@ export function AccountItem({
               <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                 <Clock className="w-3 h-3" />
                 Last used: {new Date(account.lastUsedAt).toLocaleDateString()}
+              </div>
+            )}
+            {/* Weight selector */}
+            {onWeightChange && (
+              <div className="flex items-center gap-2 mt-1.5">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <WeightIcon className="w-3 h-3" />
+                        <span>Weight:</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p className="text-xs">Round-robin weight (0=skip, 1-99=rounds)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <Select
+                  value={(account.weight ?? 1).toString()}
+                  onValueChange={(v) => {
+                    const weight = parseInt(v, 10);
+                    if (!isNaN(weight)) onWeightChange(weight);
+                  }}
+                  disabled={isUpdatingWeight}
+                >
+                  <SelectTrigger className="h-6 w-20 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((w) => (
+                      <SelectItem key={w} value={w.toString()}>
+                        {w}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="custom">Custom...</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>

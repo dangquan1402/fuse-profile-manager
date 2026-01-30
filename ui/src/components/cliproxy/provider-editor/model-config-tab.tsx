@@ -53,6 +53,10 @@ interface ModelConfigTabProps {
   isBulkPausing?: boolean;
   /** Bulk resume mutation in progress */
   isBulkResuming?: boolean;
+  /** Weight change handler */
+  onWeightChange?: (accountId: string, weight: number) => void;
+  /** Weight update mutation in progress */
+  isUpdatingWeight?: boolean;
   privacyMode?: boolean;
   /** True if connected to remote CLIProxy (quota not available) */
   isRemoteMode?: boolean;
@@ -80,11 +84,13 @@ export function ModelConfigTab({
   onSoloMode,
   onBulkPause,
   onBulkResume,
+  onWeightChange,
   isRemovingAccount,
   isPausingAccount,
   isSoloingAccount,
   isBulkPausing,
   isBulkResuming,
+  isUpdatingWeight,
   privacyMode,
   isRemoteMode,
 }: ModelConfigTabProps) {
@@ -162,11 +168,13 @@ export function ModelConfigTab({
           onSoloMode={onSoloMode}
           onBulkPause={onBulkPause}
           onBulkResume={onBulkResume}
+          onWeightChange={onWeightChange}
           isRemovingAccount={isRemovingAccount}
           isPausingAccount={isPausingAccount}
           isSoloingAccount={isSoloingAccount}
           isBulkPausing={isBulkPausing}
           isBulkResuming={isBulkResuming}
+          isUpdatingWeight={isUpdatingWeight}
           privacyMode={privacyMode}
           showQuota={
             QUOTA_SUPPORTED_PROVIDERS.includes(provider as QuotaSupportedProvider) && !isRemoteMode

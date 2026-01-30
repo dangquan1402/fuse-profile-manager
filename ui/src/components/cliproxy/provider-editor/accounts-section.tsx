@@ -25,6 +25,8 @@ interface AccountsSectionProps {
   onBulkPause?: (accountIds: string[]) => void;
   /** Bulk resume multiple accounts */
   onBulkResume?: (accountIds: string[]) => void;
+  /** Weight change handler */
+  onWeightChange?: (accountId: string, weight: number) => void;
   isRemovingAccount?: boolean;
   /** Pause/resume mutation in progress */
   isPausingAccount?: boolean;
@@ -34,6 +36,8 @@ interface AccountsSectionProps {
   isBulkPausing?: boolean;
   /** Bulk resume mutation in progress */
   isBulkResuming?: boolean;
+  /** Weight update mutation in progress */
+  isUpdatingWeight?: boolean;
   privacyMode?: boolean;
   /** Show quota bars for accounts (only applicable for 'agy' provider) */
   showQuota?: boolean;
@@ -53,11 +57,13 @@ export function AccountsSection({
   onSoloMode,
   onBulkPause,
   onBulkResume,
+  onWeightChange,
   isRemovingAccount,
   isPausingAccount,
   isSoloingAccount,
   isBulkPausing,
   isBulkResuming,
+  isUpdatingWeight,
   privacyMode,
   showQuota,
   isKiro,
@@ -177,9 +183,13 @@ export function AccountsSection({
                 onPauseToggle ? (paused) => onPauseToggle(account.id, paused) : undefined
               }
               onSoloMode={onSoloMode ? () => onSoloMode(account.id) : undefined}
+              onWeightChange={
+                onWeightChange ? (weight) => onWeightChange(account.id, weight) : undefined
+              }
               isRemoving={isRemovingAccount}
               isPausingAccount={isPausingAccount}
               isSoloingAccount={isSoloingAccount}
+              isUpdatingWeight={isUpdatingWeight}
               privacyMode={privacyMode}
               showQuota={showQuota}
               selectable={isSelectable}

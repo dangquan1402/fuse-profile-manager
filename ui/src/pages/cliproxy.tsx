@@ -29,6 +29,7 @@ import {
   useBulkResumeAccounts,
   useDeleteVariant,
 } from '@/hooks/use-cliproxy';
+import { useSetAccountWeight } from '@/hooks/use-accounts';
 import type { AuthStatus, Variant } from '@/lib/api-client';
 import { MODEL_CATALOGS } from '@/lib/model-catalogs';
 import { cn } from '@/lib/utils';
@@ -192,6 +193,7 @@ export function CliproxyPage() {
   const bulkPauseMutation = useBulkPauseAccounts();
   const bulkResumeMutation = useBulkResumeAccounts();
   const deleteMutation = useDeleteVariant();
+  const setWeightMutation = useSetAccountWeight();
 
   // Selection state: either a provider or a variant
   // Initialize from localStorage if available
@@ -427,11 +429,19 @@ export function CliproxyPage() {
             onBulkResume={(accountIds) =>
               handleBulkResume(selectedVariantData.provider, accountIds)
             }
+            onWeightChange={(accountId, weight) =>
+              setWeightMutation.mutate({
+                provider: selectedVariantData.provider,
+                accountId,
+                weight,
+              })
+            }
             isRemovingAccount={removeMutation.isPending}
             isPausingAccount={pauseMutation.isPending || resumeMutation.isPending}
             isSoloingAccount={soloMutation.isPending}
             isBulkPausing={bulkPauseMutation.isPending}
             isBulkResuming={bulkResumeMutation.isPending}
+            isUpdatingWeight={setWeightMutation.isPending}
           />
         ) : selectedStatus ? (
           <ProviderEditor
@@ -465,11 +475,19 @@ export function CliproxyPage() {
             onSoloMode={(accountId) => handleSoloMode(selectedStatus.provider, accountId)}
             onBulkPause={(accountIds) => handleBulkPause(selectedStatus.provider, accountIds)}
             onBulkResume={(accountIds) => handleBulkResume(selectedStatus.provider, accountIds)}
+            onWeightChange={(accountId, weight) =>
+              setWeightMutation.mutate({
+                provider: selectedStatus.provider,
+                accountId,
+                weight,
+              })
+            }
             isRemovingAccount={removeMutation.isPending}
             isPausingAccount={pauseMutation.isPending || resumeMutation.isPending}
             isSoloingAccount={soloMutation.isPending}
             isBulkPausing={bulkPauseMutation.isPending}
             isBulkResuming={bulkResumeMutation.isPending}
+            isUpdatingWeight={setWeightMutation.isPending}
           />
         ) : (
           <EmptyProviderState onSetup={() => setWizardOpen(true)} />
