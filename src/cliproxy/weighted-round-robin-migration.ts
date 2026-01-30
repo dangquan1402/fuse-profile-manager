@@ -210,8 +210,24 @@ export async function migrateOldPrefixes(
   // Generate new weighted files
   await syncWeightedAuthFiles(provider);
 
-  // Remove old prefixed files
+  // Verify new files were created before deleting old ones
   const authDir = getAuthDir();
+  const newFilesExist = groups.every((group) => {
+    // Check at least r01 file exists for each migrated account
+    const r01File = `${provider}-r01_${group.email}.json`;
+    const r01aFile = `${provider}-r01a_${group.email}.json`;
+    return (
+      fs.existsSync(path.join(authDir, r01File)) || fs.existsSync(path.join(authDir, r01aFile))
+    );
+  });
+
+  if (!newFilesExist) {
+    console.warn('Migration verification failed: not all new files created');
+    // Don't delete old files, don't mark complete
+    return { migrated: 0, skipped: false };
+  }
+
+  // Remove old prefixed files (only if verification passed)
   for (const file of oldFiles) {
     const filePath = path.join(authDir, file.filename);
     try {

@@ -190,6 +190,16 @@ export {
   isProfileSyncable,
 } from './sync';
 
+// Weighted round-robin
+export {
+  generateWeightedFiles,
+  syncWeightedAuthFiles,
+  type WeightedFile,
+  type SyncResult,
+} from './weighted-round-robin-sync';
+
+export { migrateOldPrefixes, isMigrationComplete } from './weighted-round-robin-migration';
+
 // Tool name sanitization (for Gemini 64-char limit compliance)
 export type { SanitizeResult } from './tool-name-sanitizer';
 export {

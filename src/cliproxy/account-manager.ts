@@ -558,7 +558,7 @@ export function setAccountWeight(
   provider: CLIProxyProvider,
   accountId: string,
   weight: number
-): boolean {
+): void {
   if (weight < 0 || weight > 99) {
     throw new Error('Weight must be between 0 and 99');
   }
@@ -566,12 +566,11 @@ export function setAccountWeight(
   const registry = loadAccountsRegistry();
   const providerAccounts = registry.providers[provider];
   if (!providerAccounts?.accounts[accountId]) {
-    return false;
+    throw new Error(`Account "${accountId}" not found for provider "${provider}"`);
   }
 
   providerAccounts.accounts[accountId].weight = weight;
   saveAccountsRegistry(registry);
-  return true;
 }
 
 /**

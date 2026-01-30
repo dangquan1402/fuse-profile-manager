@@ -557,24 +557,28 @@ router.put(
       return;
     }
 
-    if (typeof weight !== 'number' || weight < 0 || weight > 99) {
+    if (typeof weight !== 'number' || isNaN(weight) || weight < 0 || weight > 99) {
       res.status(400).json({ error: 'Weight must be 0-99' });
       return;
     }
 
     try {
-      const success = setAccountWeight(provider as CLIProxyProvider, accountId, weight);
-      if (!success) {
-        res.status(404).json({ error: 'Account not found' });
-        return;
-      }
+      setAccountWeight(provider as CLIProxyProvider, accountId, weight);
 
       // Auto-sync after weight change
       await syncWeightedAuthFiles(provider as CLIProxyProvider);
 
       res.json({ success: true, weight });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      const message = (error as Error).message;
+      // Return 404 if account not found, 400 for validation errors, 500 for others
+      if (message.includes('not found')) {
+        res.status(404).json({ error: message });
+      } else if (message.includes('must be')) {
+        res.status(400).json({ error: message });
+      } else {
+        res.status(500).json({ error: message });
+      }
     }
   }
 );
@@ -617,6 +621,14 @@ router.post('/weight/tier-defaults', async (req: Request, res: Response): Promis
   if (!tierWeights || typeof tierWeights !== 'object') {
     res.status(400).json({ error: 'tierWeights object required' });
     return;
+  }
+
+  // Validate each tier weight value
+  for (const [tier, value] of Object.entries(tierWeights)) {
+    if (typeof value !== 'number' || isNaN(value) || value < 0 || value > 99) {
+      res.status(400).json({ error: `Invalid weight for tier '${tier}': must be 0-99` });
+      return;
+    }
   }
 
   try {

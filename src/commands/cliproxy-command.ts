@@ -1383,9 +1383,10 @@ async function handleSetWeight(args: string[]): Promise<void> {
   }
 
   // Set weight
-  const success = setAccountWeight(foundAccount.provider, foundAccount.accountId, weight);
-  if (!success) {
-    console.log(fail('Failed to set weight'));
+  try {
+    setAccountWeight(foundAccount.provider, foundAccount.accountId, weight);
+  } catch (error) {
+    console.log(fail((error as Error).message));
     process.exit(1);
   }
 
