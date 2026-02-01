@@ -20,7 +20,18 @@ import * as readline from 'readline';
 const CONFIG_DIR = path.join(os.homedir(), '.fuseapi');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
+interface ProfileConfig {
+  endpoint: string;
+  apiKey: string;
+}
+
 interface Config {
+  version: number;
+  default: string;
+  profiles: Record<string, ProfileConfig>;
+}
+
+interface LegacyConfig {
   endpoint: string;
   apiKey: string;
 }
@@ -37,7 +48,17 @@ function loadConfig(): Config | null {
   }
   try {
     const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+
+    // Auto-migrate old format
+    if (!parsed.version) {
+      const migrated = migrateConfig(parsed);
+      saveConfig(migrated);
+      console.log('[i] Configuration migrated to multi-profile format');
+      return migrated;
+    }
+
+    return parsed;
   } catch (error) {
     console.error('[!] Failed to load config:', error);
     return null;
@@ -47,6 +68,40 @@ function loadConfig(): Config | null {
 function saveConfig(config: Config): void {
   ensureConfigDir();
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+}
+
+function migrateConfig(oldConfig: LegacyConfig): Config {
+  // Old format: { endpoint, apiKey }
+  // New format: { version, default, profiles: { ... } }
+  return {
+    version: 1,
+    default: 'fuse',
+    profiles: {
+      fuse: {
+        endpoint: oldConfig.endpoint,
+        apiKey: oldConfig.apiKey
+      }
+    }
+  };
+}
+
+function detectProfile(args: string[]): { profile: string; remainingArgs: string[] } {
+  // Check if first arg is a profile name
+  const firstArg = args[0];
+
+  if (!firstArg || firstArg.startsWith('-')) {
+    // No profile specified, use default
+    return { profile: 'default', remainingArgs: args };
+  }
+
+  const config = loadConfig();
+  if (config && config.profiles[firstArg]) {
+    // First arg is a valid profile name
+    return { profile: firstArg, remainingArgs: args.slice(1) };
+  }
+
+  // First arg is not a profile, treat as Claude argument
+  return { profile: 'default', remainingArgs: args };
 }
 
 // ========== UI Helpers ==========
@@ -73,19 +128,22 @@ async function cmdSetup(args: string[]): Promise<void> {
   // Parse CLI args
   let endpoint = 'https://api.fuseapi.app';
   let apiKey = '';
+  let profileName = 'fuse';
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--endpoint' && args[i + 1]) {
       endpoint = args[++i];
     } else if (args[i] === '--api-key' && args[i + 1]) {
       apiKey = args[++i];
+    } else if (args[i] === '--profile' && args[i + 1]) {
+      profileName = args[++i];
     }
   }
 
   // Interactive prompts if not provided
   if (!apiKey) {
     const currentConfig = loadConfig();
-    const defaultEndpoint = currentConfig?.endpoint || endpoint;
+    const defaultEndpoint = currentConfig?.profiles?.fuse?.endpoint || endpoint;
 
     endpoint = await prompt(`API Endpoint [${defaultEndpoint}]: `) || defaultEndpoint;
     apiKey = await prompt('API Key: ');
@@ -96,13 +154,29 @@ async function cmdSetup(args: string[]): Promise<void> {
     process.exit(1);
   }
 
-  // Save config
-  saveConfig({ endpoint, apiKey });
+  // Load or create config
+  let config = loadConfig();
+  if (!config) {
+    config = {
+      version: 1,
+      default: profileName,
+      profiles: {}
+    };
+  }
+
+  // Add/update profile
+  config.profiles[profileName] = { endpoint, apiKey };
+  if (!config.default) {
+    config.default = profileName;
+  }
+
+  saveConfig(config);
 
   console.log('\n[OK] Configuration saved!');
+  console.log(`     Profile: ${profileName}`);
   console.log(`     Endpoint: ${endpoint}`);
   console.log(`     API Key: ${apiKey.substring(0, 12)}...`);
-  console.log('\nRun "fuseapi" to start using FuseAPI with Claude Code\n');
+  console.log(`\nRun "fuseapi${profileName === 'fuse' ? '' : ' ' + profileName}" to start using this profile\n`);
 }
 
 async function cmdDoctor(): Promise<void> {
@@ -117,16 +191,24 @@ async function cmdDoctor(): Promise<void> {
   }
 
   console.log('[OK] Configuration exists');
-  console.log(`     Endpoint: ${config.endpoint}`);
-  console.log(`     API Key: ${config.apiKey.substring(0, 12)}...`);
+  console.log(`     Profiles: ${Object.keys(config.profiles).join(', ')}`);
+  console.log(`     Default: ${config.default}`);
+
+  // Show each profile
+  Object.entries(config.profiles).forEach(([name, profile]) => {
+    console.log(`\n     Profile: ${name}`);
+    console.log(`       Endpoint: ${profile.endpoint}`);
+    console.log(`       API Key: ${profile.apiKey.substring(0, 12)}...`);
+  });
 
   // Check Claude CLI
   try {
     const { execSync } = require('child_process');
-    execSync('which claude', { stdio: 'ignore' });
-    console.log('[OK] Claude CLI found');
+    const checkCmd = process.platform === 'win32' ? 'where claude' : 'which claude';
+    execSync(checkCmd, { stdio: 'ignore' });
+    console.log('\n[OK] Claude CLI found');
   } catch {
-    console.log('[!] Claude CLI not found');
+    console.log('\n[!] Claude CLI not found');
     console.log('    Install: npm install -g @anthropic-ai/claude-code');
   }
 
@@ -142,12 +224,21 @@ async function cmdConfig(): Promise<void> {
   }
 
   console.log('\n=== FuseAPI Configuration ===\n');
-  console.log(`Endpoint: ${config.endpoint}`);
-  console.log(`API Key:  ${config.apiKey.substring(0, 12)}...`);
+  console.log(`Default Profile: ${config.default}`);
+  console.log(`\nProfiles:`);
+
+  Object.entries(config.profiles).forEach(([name, profile]) => {
+    const isDefault = name === config.default;
+    const marker = isDefault ? ' (default)' : '';
+    console.log(`\n  ${name}${marker}`);
+    console.log(`    Endpoint: ${profile.endpoint}`);
+    console.log(`    API Key:  ${profile.apiKey.substring(0, 12)}...`);
+  });
+
   console.log(`\nConfig file: ${CONFIG_FILE}\n`);
 }
 
-async function cmdLaunch(args: string[]): Promise<void> {
+async function cmdLaunch(profile: string, args: string[]): Promise<void> {
   // Load config
   const config = loadConfig();
   if (!config) {
@@ -156,20 +247,31 @@ async function cmdLaunch(args: string[]): Promise<void> {
     process.exit(1);
   }
 
+  // Resolve profile (use default if 'default')
+  const profileName = profile === 'default' ? (config.default || 'fuse') : profile;
+  const profileConfig = config.profiles[profileName];
+
+  if (!profileConfig) {
+    console.error(`\n[!] Profile "${profileName}" not found`);
+    console.error(`    Available profiles: ${Object.keys(config.profiles).join(', ')}\n`);
+    process.exit(1);
+  }
+
   // Set environment variables
   // Use ANTHROPIC_AUTH_TOKEN instead of ANTHROPIC_API_KEY to avoid conflicts with claude.ai login
   const env = {
     ...process.env,
-    ANTHROPIC_BASE_URL: config.endpoint,
-    ANTHROPIC_AUTH_TOKEN: config.apiKey,
+    ANTHROPIC_BASE_URL: profileConfig.endpoint,
+    ANTHROPIC_AUTH_TOKEN: profileConfig.apiKey,
   };
 
   // Launch Claude Code
-  console.log('[i] Launching Claude Code with FuseAPI...\n');
+  console.log(`[i] Launching Claude Code with ${profileName} profile...\n`);
 
   const claudeProcess = spawn('claude', args, {
     env,
     stdio: 'inherit',
+    shell: process.platform === 'win32', // Required for Windows to find npm global binaries
   });
 
   claudeProcess.on('error', (error) => {
@@ -212,7 +314,7 @@ async function main() {
   const args = process.argv.slice(2);
 
   if (args.length === 0) {
-    await cmdLaunch([]);
+    await cmdLaunch('default', []);
     return;
   }
 
@@ -234,8 +336,9 @@ async function main() {
       showHelp();
       break;
     default:
-      // Treat as Claude Code arguments
-      await cmdLaunch(args);
+      // Detect profile from args or use default
+      const { profile, remainingArgs } = detectProfile(args);
+      await cmdLaunch(profile, remainingArgs);
       break;
   }
 }
