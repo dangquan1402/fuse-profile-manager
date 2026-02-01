@@ -157,10 +157,11 @@ async function cmdLaunch(args: string[]): Promise<void> {
   }
 
   // Set environment variables
+  // Use ANTHROPIC_AUTH_TOKEN instead of ANTHROPIC_API_KEY to avoid conflicts with claude.ai login
   const env = {
     ...process.env,
     ANTHROPIC_BASE_URL: config.endpoint,
-    ANTHROPIC_API_KEY: config.apiKey,
+    ANTHROPIC_AUTH_TOKEN: config.apiKey,
   };
 
   // Launch Claude Code
