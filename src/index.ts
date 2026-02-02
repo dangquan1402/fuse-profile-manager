@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * FuseAPI CLI - Ultra-minimal CLI for FuseAPI with Claude Code
+ * FuseAPI CLI - Ultra-minimal CLI for FuseAPI with Claude Code and OpenCode
  * Commands:
  *   fuseapi setup - Configure FuseAPI credentials
  *   fuseapi - Launch Claude Code with FuseAPI
+ *   fuseapi opencode - Launch OpenCode with FuseAPI
  *   fuseapi doctor - Check health
  *   fuseapi config - Show config
  */
@@ -35,6 +36,112 @@ interface LegacyConfig {
   endpoint: string;
   apiKey: string;
 }
+
+// ========== Model Registry ==========
+
+interface ModelDefinition {
+  id: string;
+  name: string;
+  context?: number;
+  output?: number;
+}
+
+const DEFAULT_MODELS: ModelDefinition[] = [
+  {
+    id: 'claude-sonnet-4-5',
+    name: 'Claude Sonnet 4.5',
+    context: 200000,
+    output: 8192
+  },
+  {
+    id: 'claude-haiku-4-5',
+    name: 'Claude Haiku 4.5',
+    context: 200000,
+    output: 8192
+  },
+  {
+    id: 'gemini-2-5-pro',
+    name: 'Gemini 2.5 Pro',
+    context: 1000000,
+    output: 8192
+  },
+  {
+    id: 'gpt-4o',
+    name: 'GPT-4o',
+    context: 128000,
+    output: 16384
+  }
+];
+
+// ========== OpenCode Config Generator ==========
+
+interface OpenCodeModelConfig {
+  name: string;
+  limit?: {
+    context: number;
+    output: number;
+  };
+}
+
+interface OpenCodeConfig {
+  $schema: string;
+  provider: {
+    [key: string]: {
+      npm: string;
+      name: string;
+      options: {
+        baseURL: string;
+        apiKey: string;
+      };
+      models: Record<string, OpenCodeModelConfig>;
+    };
+  };
+  model: string;
+  small_model: string;
+}
+
+function generateOpenCodeConfig(profileConfig: ProfileConfig, profileName: string): OpenCodeConfig {
+  const models: Record<string, OpenCodeModelConfig> = {};
+
+  DEFAULT_MODELS.forEach(model => {
+    const modelConfig: OpenCodeModelConfig = {
+      name: model.name
+    };
+
+    if (model.context && model.output) {
+      modelConfig.limit = {
+        context: model.context,
+        output: model.output
+      };
+    }
+
+    models[model.id] = modelConfig;
+  });
+
+  return {
+    $schema: 'https://opencode.ai/config.json',
+    provider: {
+      [profileName]: {
+        npm: '@ai-sdk/openai-compatible',
+        name: `FuseAPI (${profileName})`,
+        options: {
+          baseURL: profileConfig.endpoint,
+          apiKey: profileConfig.apiKey
+        },
+        models
+      }
+    },
+    model: `${profileName}/claude-sonnet-4-5`,
+    small_model: `${profileName}/claude-haiku-4-5`
+  };
+}
+
+function saveOpenCodeConfig(config: OpenCodeConfig): string {
+  const opencodeConfigPath = path.join(CONFIG_DIR, 'opencode.json');
+  fs.writeFileSync(opencodeConfigPath, JSON.stringify(config, null, 2));
+  return opencodeConfigPath;
+}
+
 
 function ensureConfigDir(): void {
   if (!fs.existsSync(CONFIG_DIR)) {
@@ -212,6 +319,17 @@ async function cmdDoctor(): Promise<void> {
     console.log('    Install: npm install -g @anthropic-ai/claude-code');
   }
 
+  // Check OpenCode CLI
+  try {
+    const { execSync } = require('child_process');
+    const checkCmd = process.platform === 'win32' ? 'where opencode' : 'which opencode';
+    execSync(checkCmd, { stdio: 'ignore' });
+    console.log('[OK] OpenCode CLI found');
+  } catch {
+    console.log('[!] OpenCode CLI not found');
+    console.log('    Install: https://opencode.ai');
+  }
+
   console.log('\n[OK] All checks passed!\n');
 }
 
@@ -285,13 +403,66 @@ async function cmdLaunch(profile: string, args: string[]): Promise<void> {
   });
 }
 
+async function cmdOpenCode(profile: string, args: string[]): Promise<void> {
+  // Load config
+  const config = loadConfig();
+  if (!config) {
+    console.error('\n[!] No configuration found');
+    console.error('    Run "fuseapi setup" to configure FuseAPI\n');
+    process.exit(1);
+  }
+
+  // Resolve profile (use default if 'default')
+  const profileName = profile === 'default' ? (config.default || 'fuse') : profile;
+  const profileConfig = config.profiles[profileName];
+
+  if (!profileConfig) {
+    console.error(`\n[!] Profile "${profileName}" not found`);
+    console.error(`    Available profiles: ${Object.keys(config.profiles).join(', ')}\n`);
+    process.exit(1);
+  }
+
+  // Generate OpenCode configuration
+  const opencodeConfig = generateOpenCodeConfig(profileConfig, profileName);
+  const configPath = saveOpenCodeConfig(opencodeConfig);
+
+  console.log(`[i] OpenCode configuration generated at ${configPath}`);
+  console.log(`[i] Launching OpenCode with ${profileName} profile...`);
+  console.log(`[i] Available models: ${DEFAULT_MODELS.map(m => m.id).join(', ')}\n`);
+
+  // Set environment variable for OpenCode config
+  const env = {
+    ...process.env,
+    OPENCODE_CONFIG: configPath
+  };
+
+  // Launch OpenCode
+  const opencodeProcess = spawn('opencode', args, {
+    env,
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  });
+
+  opencodeProcess.on('error', (error) => {
+    console.error('\n[!] Failed to launch OpenCode:', error.message);
+    console.error('    Make sure OpenCode is installed: https://opencode.ai\n');
+    process.exit(1);
+  });
+
+  opencodeProcess.on('exit', (code) => {
+    process.exit(code || 0);
+  });
+}
+
+
 function showHelp(): void {
   console.log(`
-FuseAPI CLI - Ultra-minimal CLI for FuseAPI with Claude Code
+FuseAPI CLI - Ultra-minimal CLI for FuseAPI with Claude Code and OpenCode
 
 USAGE:
   fuseapi setup [--endpoint URL] [--api-key KEY]   Configure FuseAPI credentials
   fuseapi [prompt]                                  Launch Claude Code with FuseAPI
+  fuseapi opencode [args]                           Launch OpenCode with FuseAPI
   fuseapi doctor                                    Check configuration health
   fuseapi config                                    Show current configuration
   fuseapi --help                                    Show this help
@@ -300,11 +471,14 @@ EXAMPLES:
   fuseapi setup                                     Interactive setup
   fuseapi setup --endpoint https://api.fuseapi.app --api-key fuse_xxx
   fuseapi                                           Launch Claude Code
-  fuseapi "help me debug this code"                 Launch with prompt
+  fuseapi "help me debug this code"                 Launch Claude Code with prompt
+  fuseapi opencode                                  Launch OpenCode
+  fuseapi opencode "refactor this function"         Launch OpenCode with prompt
   fuseapi doctor                                    Health check
 
 CONFIG:
   Configuration is stored in: ${CONFIG_FILE}
+  OpenCode config: ${path.join(CONFIG_DIR, 'opencode.json')}
   `);
 }
 
@@ -324,6 +498,12 @@ async function main() {
     case 'setup':
       await cmdSetup(args.slice(1));
       break;
+    case 'opencode': {
+      // Detect profile from remaining args
+      const { profile, remainingArgs } = detectProfile(args.slice(1));
+      await cmdOpenCode(profile, remainingArgs);
+      break;
+    }
     case 'doctor':
       await cmdDoctor();
       break;
@@ -335,11 +515,12 @@ async function main() {
     case 'help':
       showHelp();
       break;
-    default:
+    default: {
       // Detect profile from args or use default
       const { profile, remainingArgs } = detectProfile(args);
       await cmdLaunch(profile, remainingArgs);
       break;
+    }
   }
 }
 
