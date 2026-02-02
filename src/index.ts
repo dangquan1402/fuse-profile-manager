@@ -188,7 +188,7 @@ function generateOpenCodeConfig(profileConfig: ProfileConfig, profileName: strin
         npm: '@ai-sdk/openai-compatible',
         name: `FuseAPI (${profileName})`,
         options: {
-          baseURL: profileConfig.endpoint,
+          baseURL: `${profileConfig.endpoint}/v1`,
           apiKey: profileConfig.apiKey
         },
         models
