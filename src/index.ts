@@ -47,29 +47,92 @@ interface ModelDefinition {
 }
 
 const DEFAULT_MODELS: ModelDefinition[] = [
+  // Claude Models
   {
-    id: 'claude-sonnet-4-5',
+    id: 'claude-sonnet-4.5',
     name: 'Claude Sonnet 4.5',
     context: 200000,
     output: 8192
   },
   {
-    id: 'claude-haiku-4-5',
+    id: 'claude-opus-4.5',
+    name: 'Claude Opus 4.5',
+    context: 200000,
+    output: 8192
+  },
+  {
+    id: 'claude-haiku-4.5',
     name: 'Claude Haiku 4.5',
     context: 200000,
     output: 8192
   },
   {
-    id: 'gemini-2-5-pro',
+    id: 'claude-sonnet-4',
+    name: 'Claude Sonnet 4',
+    context: 200000,
+    output: 8192
+  },
+  {
+    id: 'claude-opus-4.1',
+    name: 'Claude Opus 4.1',
+    context: 200000,
+    output: 8192
+  },
+  // Gemini Models
+  {
+    id: 'gemini-2.5-pro',
     name: 'Gemini 2.5 Pro',
     context: 1000000,
     output: 8192
   },
   {
-    id: 'gpt-4o',
-    name: 'GPT-4o',
-    context: 128000,
-    output: 16384
+    id: 'gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
+    context: 1000000,
+    output: 8192
+  },
+  {
+    id: 'gemini-2.5-flash-lite',
+    name: 'Gemini 2.5 Flash Lite',
+    context: 1000000,
+    output: 8192
+  },
+  {
+    id: 'gemini-3-pro-preview',
+    name: 'Gemini 3 Pro Preview',
+    context: 1000000,
+    output: 8192
+  },
+  {
+    id: 'gemini-3-flash-preview',
+    name: 'Gemini 3 Flash Preview',
+    context: 1000000,
+    output: 8192
+  },
+  {
+    id: 'gemini-3-pro-image-preview',
+    name: 'Gemini 3 Pro Image Preview',
+    context: 1000000,
+    output: 8192
+  },
+  // Hybrid Models (Gemini + Claude)
+  {
+    id: 'gemini-claude-sonnet-4-5',
+    name: 'Gemini + Claude Sonnet 4.5',
+    context: 200000,
+    output: 8192
+  },
+  {
+    id: 'gemini-claude-sonnet-4-5-thinking',
+    name: 'Gemini + Claude Sonnet 4.5 (Thinking)',
+    context: 200000,
+    output: 8192
+  },
+  {
+    id: 'gemini-claude-opus-4-5-thinking',
+    name: 'Gemini + Claude Opus 4.5 (Thinking)',
+    context: 200000,
+    output: 8192
   }
 ];
 
@@ -131,8 +194,8 @@ function generateOpenCodeConfig(profileConfig: ProfileConfig, profileName: strin
         models
       }
     },
-    model: `${profileName}/claude-sonnet-4-5`,
-    small_model: `${profileName}/claude-haiku-4-5`
+    model: `${profileName}/claude-sonnet-4.5`,
+    small_model: `${profileName}/gemini-2.5-flash`
   };
 }
 
