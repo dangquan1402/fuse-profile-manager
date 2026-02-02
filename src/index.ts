@@ -47,7 +47,7 @@ interface ModelDefinition {
 }
 
 const DEFAULT_MODELS: ModelDefinition[] = [
-  // Claude Models
+  // Claude Family
   {
     id: 'claude-sonnet-4.5',
     name: 'Claude Sonnet 4.5',
@@ -66,19 +66,7 @@ const DEFAULT_MODELS: ModelDefinition[] = [
     context: 200000,
     output: 8192
   },
-  {
-    id: 'claude-sonnet-4',
-    name: 'Claude Sonnet 4',
-    context: 200000,
-    output: 8192
-  },
-  {
-    id: 'claude-opus-4.1',
-    name: 'Claude Opus 4.1',
-    context: 200000,
-    output: 8192
-  },
-  // Gemini Models
+  // Gemini Family (pure, no hybrid)
   {
     id: 'gemini-2.5-pro',
     name: 'Gemini 2.5 Pro',
@@ -115,23 +103,17 @@ const DEFAULT_MODELS: ModelDefinition[] = [
     context: 1000000,
     output: 8192
   },
-  // Hybrid Models (Gemini + Claude)
+  // GPT Family
   {
-    id: 'gemini-claude-sonnet-4-5',
-    name: 'Gemini + Claude Sonnet 4.5',
-    context: 200000,
+    id: 'gpt-5.1',
+    name: 'GPT 5.1',
+    context: 128000,
     output: 8192
   },
   {
-    id: 'gemini-claude-sonnet-4-5-thinking',
-    name: 'Gemini + Claude Sonnet 4.5 (Thinking)',
-    context: 200000,
-    output: 8192
-  },
-  {
-    id: 'gemini-claude-opus-4-5-thinking',
-    name: 'Gemini + Claude Opus 4.5 (Thinking)',
-    context: 200000,
+    id: 'gpt-5.2',
+    name: 'GPT 5.2',
+    context: 128000,
     output: 8192
   }
 ];
