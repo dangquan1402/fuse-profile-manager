@@ -1,6 +1,6 @@
 {
   "name": "@fuseapi/cli",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Ultra-minimal CLI for FuseAPI with Claude Code and OpenCode - one user, one profile, zero complexity",
   "keywords": [
     "cli",
